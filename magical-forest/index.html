@@ -1,0 +1,1295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Magical Forest Adventure</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: #0a1f0a;
+    overflow: hidden;
+    font-family: "Comic Sans MS", "Trebuchet MS", sans-serif;
+  }
+  #game {
+    display: block;
+    margin: 0 auto;
+    background: linear-gradient(#1f4d1f, #0e2a0e);
+  }
+  #hud {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    color: #fffacc;
+    font-size: 22px;
+    text-shadow: 2px 2px 0 #000;
+    pointer-events: none;
+  }
+  #title {
+    position: fixed;
+    top: 10px;
+    right: 14px;
+    color: #ffd6f5;
+    font-size: 28px;
+    text-shadow: 2px 2px 0 #2a0033;
+    pointer-events: none;
+  }
+  #help {
+    position: fixed;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #fff;
+    font-size: 18px;
+    background: rgba(0,0,0,0.4);
+    padding: 6px 14px;
+    border-radius: 12px;
+    pointer-events: none;
+  }
+  #message {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #fff;
+    font-size: 32px;
+    text-align: center;
+    background: rgba(40, 0, 60, 0.85);
+    padding: 18px 28px;
+    border-radius: 18px;
+    border: 3px solid #ffd6f5;
+    display: none;
+    pointer-events: none;
+    text-shadow: 2px 2px 0 #000;
+  }
+</style>
+</head>
+<body>
+<canvas id="game" width="960" height="640"></canvas>
+<div id="hud">
+  ✨ Sparkles: <span id="sparkles">0</span> &nbsp; 🍄 Mushrooms: <span id="mushrooms">0</span> &nbsp; 💎 Treasures: <span id="treasures">0</span>
+</div>
+<div id="title">🌲 Magical Forest 🧚</div>
+<div id="help">Use arrow keys or WASD to explore! Find sparkles, mushrooms, and hidden treasures ✨</div>
+<div id="message"></div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const W = canvas.width;
+const H = canvas.height;
+
+// ----- World (bigger than the screen so you can explore) -----
+const WORLD_W = 2400;
+const WORLD_H = 1800;
+
+// Camera follows the player
+const camera = { x: 0, y: 0 };
+
+// ----- Player -----
+const player = {
+  x: WORLD_W / 2,
+  y: WORLD_H / 2,
+  r: 18,
+  speed: 3.6,
+  facing: 1,
+  walkPhase: 0,
+};
+
+// Input
+const keys = {};
+window.addEventListener('keydown', (e) => {
+  keys[e.key.toLowerCase()] = true;
+  if (['arrowup','arrowdown','arrowleft','arrowright',' '].includes(e.key.toLowerCase())) e.preventDefault();
+});
+window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+
+// ----- Helpers -----
+function rand(min, max) { return Math.random() * (max - min) + min; }
+function randInt(min, max) { return Math.floor(rand(min, max + 1)); }
+function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+
+// ----- Generate the forest -----
+const trees = [];
+for (let i = 0; i < 220; i++) {
+  trees.push({
+    x: rand(40, WORLD_W - 40),
+    y: rand(40, WORLD_H - 40),
+    r: rand(28, 46),
+    sway: rand(0, Math.PI * 2),
+    hue: randInt(95, 145),
+  });
+}
+
+// Flowers scattered in clearings
+const flowers = [];
+for (let i = 0; i < 140; i++) {
+  flowers.push({
+    x: rand(20, WORLD_W - 20),
+    y: rand(20, WORLD_H - 20),
+    color: ['#ff5fa2','#ffe14c','#9b6cff','#ff8e3c','#5fd9ff'][randInt(0,4)],
+    size: rand(4, 8),
+    wobble: rand(0, Math.PI*2),
+  });
+}
+
+// Sparkles (collectible glowing dots — the easy collectible)
+const sparkles = [];
+for (let i = 0; i < 60; i++) {
+  sparkles.push({
+    x: rand(40, WORLD_W - 40),
+    y: rand(40, WORLD_H - 40),
+    phase: rand(0, Math.PI * 2),
+    collected: false,
+  });
+}
+
+// Glowing mushrooms — bigger collectible, stays near tree clusters
+const mushrooms = [];
+for (let i = 0; i < 24; i++) {
+  mushrooms.push({
+    x: rand(60, WORLD_W - 60),
+    y: rand(60, WORLD_H - 60),
+    color: ['#ff4f6f','#ffaa3a','#a55eff','#3affd1','#ff7df0'][randInt(0,4)],
+    pulse: rand(0, Math.PI*2),
+    collected: false,
+  });
+}
+
+// Treasures — rare hidden gems
+const treasures = [];
+for (let i = 0; i < 6; i++) {
+  treasures.push({
+    x: rand(120, WORLD_W - 120),
+    y: rand(120, WORLD_H - 120),
+    collected: false,
+    spin: rand(0, Math.PI*2),
+  });
+}
+
+// Fairies — friendly NPCs that flutter around
+const fairies = [];
+for (let i = 0; i < 6; i++) {
+  fairies.push({
+    x: rand(100, WORLD_W - 100),
+    y: rand(100, WORLD_H - 100),
+    color: ['#ffd6f5','#cdfaff','#fff4a3','#d4ffcb'][randInt(0,3)],
+    bobPhase: rand(0, Math.PI*2),
+    moveAngle: rand(0, Math.PI*2),
+    speed: rand(0.6, 1.2),
+    greeted: false,
+  });
+}
+
+// Unicorns — beautiful magical horses that gallop around
+const unicorns = [];
+const PX = WORLD_W / 2, PY = WORLD_H / 2;  // player spawn point
+for (let i = 0; i < 6; i++) {
+  // first 2 spawn right near the player so Camilla sees them immediately
+  const nearStart = i < 2;
+  unicorns.push({
+    x: nearStart ? PX + rand(-180, 180) : rand(200, WORLD_W - 200),
+    y: nearStart ? PY + rand(-140, 140) : rand(200, WORLD_H - 200),
+    bodyColor: ['#ffffff', '#fff0fa', '#f5e6ff'][randInt(0,2)],
+    maneHue: randInt(0, 360),  // rainbow mane base
+    moveAngle: rand(0, Math.PI*2),
+    speed: rand(0.9, 1.6),
+    gallopPhase: rand(0, Math.PI*2),
+    facing: 1,
+    lastX: 0,
+    pet: false,
+  });
+}
+
+// Dragons — cute friendly cartoon dragons
+const dragons = [];
+for (let i = 0; i < 7; i++) {
+  // first 2 dragons spawn near the player
+  const nearStart = i < 2;
+  dragons.push({
+    x: nearStart ? PX + rand(-180, 180) : rand(200, WORLD_W - 200),
+    y: nearStart ? PY + rand(-140, 140) : rand(200, WORLD_H - 200),
+    color: ['#5fd96b', '#5fa8ff', '#ff9a3a', '#c46bff', '#ff6ba8', '#ffd54a', '#7affff'][i % 7],
+    bellyColor: '#fff5cc',
+    moveAngle: rand(0, Math.PI*2),
+    speed: rand(0.6, 1.1),
+    flapPhase: rand(0, Math.PI*2),
+    puffTimer: rand(0, 100),
+    puffs: [],
+    facing: 1,
+    lastX: 0,
+    greeted: false,
+  });
+}
+
+// People — other friendly characters wandering the forest
+const people = [
+  {
+    type: 'wizard',
+    x: rand(200, WORLD_W - 200), y: rand(200, WORLD_H - 200),
+    color: '#6b4ce0', hatColor: '#3a1f8a', skin: '#ffe0b2',
+    greetings: [
+      "🧙 Greetings, young explorer!",
+      "🧙 Magic is everywhere in this forest...",
+      "🧙 Have you found my missing crystals?",
+    ],
+  },
+  {
+    type: 'princess',
+    x: rand(200, WORLD_W - 200), y: rand(200, WORLD_H - 200),
+    color: '#ffb3d9', hatColor: '#ffd700', skin: '#ffe0b2',
+    greetings: [
+      "👸 Hello, friend! Your crown is so pretty!",
+      "👸 I love adventures too!",
+      "👸 The fairies told me about you!",
+    ],
+  },
+  {
+    type: 'knight',
+    x: rand(200, WORLD_W - 200), y: rand(200, WORLD_H - 200),
+    color: '#9aa5b1', hatColor: '#5b6770', skin: '#ffe0b2',
+    greetings: [
+      "🛡️ I shall protect you on your quest!",
+      "🛡️ The forest holds many secrets!",
+      "🛡️ Onward, brave explorer!",
+    ],
+  },
+  {
+    type: 'explorer',
+    x: rand(200, WORLD_W - 200), y: rand(200, WORLD_H - 200),
+    color: '#e07a3a', hatColor: '#7a3f1a', skin: '#ffd1a0',
+    greetings: [
+      "🎒 Hi! I'm exploring too!",
+      "🎒 Want to be exploring buddies?",
+      "🎒 I saw a treasure that way!",
+    ],
+  },
+  {
+    type: 'witch',
+    x: rand(200, WORLD_W - 200), y: rand(200, WORLD_H - 200),
+    color: '#3a8a4a', hatColor: '#1a1a2a', skin: '#d6c4a0',
+    greetings: [
+      "🧹 A friendly witch, don't worry!",
+      "🧹 I make potions from forest flowers!",
+      "🧹 Mind the glowing mushrooms — they're magic!",
+    ],
+  },
+  {
+    type: 'gnome',
+    x: rand(200, WORLD_W - 200), y: rand(200, WORLD_H - 200),
+    color: '#c44a2a', hatColor: '#a02a1a', skin: '#ffe0b2',
+    greetings: [
+      "🍄 Hello tall person! I'm a forest gnome!",
+      "🍄 I live under that mushroom over there!",
+      "🍄 The treasures sparkle so bright!",
+    ],
+  },
+  {
+    type: 'kid',
+    x: rand(200, WORLD_W - 200), y: rand(200, WORLD_H - 200),
+    color: '#3aaeff', hatColor: '#ffd700', skin: '#ffd1a0',
+    greetings: [
+      "🧒 Hi! Wanna play tag?",
+      "🧒 This forest is the BEST!",
+      "🧒 I found 3 sparkles already!",
+    ],
+  },
+  {
+    type: 'fairy_queen',
+    x: rand(200, WORLD_W - 200), y: rand(200, WORLD_H - 200),
+    color: '#ff7be0', hatColor: '#ffd6f5', skin: '#ffe0b2',
+    greetings: [
+      "👑 I am the Queen of the Forest Fairies!",
+      "👑 You are most welcome here, dear one!",
+      "👑 Find all the treasures and become a Forest Hero!",
+    ],
+  },
+];
+// place the first 3 people right near the player so Camilla can meet them immediately
+people.forEach((p, i) => {
+  if (i < 3) {
+    const angle = (i / 3) * Math.PI * 2;
+    p.x = PX + Math.cos(angle) * 120;
+    p.y = PY + Math.sin(angle) * 120;
+  }
+  p.bobPhase = rand(0, Math.PI*2);
+  p.moveAngle = rand(0, Math.PI*2);
+  p.speed = rand(0.3, 0.8);
+  p.facing = 1;
+  p.lastX = p.x;
+  p.greeted = false;
+  p.greetCooldown = 0;
+});
+
+// Pond
+const ponds = [];
+for (let i = 0; i < 3; i++) {
+  ponds.push({
+    x: rand(200, WORLD_W - 200),
+    y: rand(200, WORLD_H - 200),
+    rx: rand(80, 130),
+    ry: rand(50, 80),
+  });
+}
+
+// ----- Sound (Web Audio API) -----
+let audioCtx = null;
+function ensureAudio() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+  }
+}
+function playTone(freq, duration = 0.18, type = 'sine', vol = 0.18) {
+  ensureAudio();
+  if (!audioCtx) return;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = type;
+  o.frequency.value = freq;
+  g.gain.value = vol;
+  g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+  o.connect(g).connect(audioCtx.destination);
+  o.start();
+  o.stop(audioCtx.currentTime + duration);
+}
+function sparkleSound() { playTone(880, 0.12, 'triangle', 0.15); setTimeout(()=>playTone(1320, 0.10, 'triangle', 0.12), 60); }
+function mushroomSound() { playTone(440, 0.16, 'square', 0.12); setTimeout(()=>playTone(660, 0.18, 'square', 0.12), 80); }
+function treasureSound() {
+  [523, 659, 784, 1047].forEach((f, i) => setTimeout(()=>playTone(f, 0.18, 'triangle', 0.18), i*80));
+}
+function fairySound() { playTone(1500, 0.08, 'sine', 0.12); setTimeout(()=>playTone(1800, 0.08, 'sine', 0.12), 60); }
+
+// ----- HUD -----
+const hudSpark = document.getElementById('sparkles');
+const hudMush  = document.getElementById('mushrooms');
+const hudTrea  = document.getElementById('treasures');
+const msgBox   = document.getElementById('message');
+let messageTimer = 0;
+function showMessage(text, ms = 1800) {
+  msgBox.textContent = text;
+  msgBox.style.display = 'block';
+  messageTimer = ms;
+}
+
+// ----- Update -----
+let scoreSparkles = 0, scoreMush = 0, scoreTreas = 0;
+
+function update(dt) {
+  // Player movement
+  let dx = 0, dy = 0;
+  if (keys['arrowleft'] || keys['a']) dx -= 1;
+  if (keys['arrowright'] || keys['d']) dx += 1;
+  if (keys['arrowup'] || keys['w']) dy -= 1;
+  if (keys['arrowdown'] || keys['s']) dy += 1;
+  if (dx || dy) {
+    const len = Math.hypot(dx, dy);
+    dx /= len; dy /= len;
+    player.x += dx * player.speed;
+    player.y += dy * player.speed;
+    if (dx !== 0) player.facing = dx > 0 ? 1 : -1;
+    player.walkPhase += 0.25;
+  }
+  player.x = Math.max(20, Math.min(WORLD_W - 20, player.x));
+  player.y = Math.max(20, Math.min(WORLD_H - 20, player.y));
+
+  // Camera follows player smoothly
+  const targetCamX = player.x - W/2;
+  const targetCamY = player.y - H/2;
+  camera.x += (targetCamX - camera.x) * 0.12;
+  camera.y += (targetCamY - camera.y) * 0.12;
+  camera.x = Math.max(0, Math.min(WORLD_W - W, camera.x));
+  camera.y = Math.max(0, Math.min(WORLD_H - H, camera.y));
+
+  // Sparkles
+  sparkles.forEach(s => {
+    s.phase += 0.08;
+    if (!s.collected && dist(s, player) < player.r + 12) {
+      s.collected = true;
+      scoreSparkles++;
+      hudSpark.textContent = scoreSparkles;
+      sparkleSound();
+    }
+  });
+
+  // Mushrooms
+  mushrooms.forEach(m => {
+    m.pulse += 0.06;
+    if (!m.collected && dist(m, player) < player.r + 18) {
+      m.collected = true;
+      scoreMush++;
+      hudMush.textContent = scoreMush;
+      mushroomSound();
+      showMessage("🍄 Glowing mushroom!", 900);
+    }
+  });
+
+  // Treasures
+  treasures.forEach(t => {
+    t.spin += 0.05;
+    if (!t.collected && dist(t, player) < player.r + 20) {
+      t.collected = true;
+      scoreTreas++;
+      hudTrea.textContent = scoreTreas;
+      treasureSound();
+      showMessage("💎 You found a hidden treasure! ✨", 1800);
+      if (scoreTreas === treasures.length) {
+        setTimeout(() => showMessage("🎉 You found ALL the treasures, Camilla! 🎉", 4000), 1800);
+      }
+    }
+  });
+
+  // Fairies (flutter around)
+  fairies.forEach(f => {
+    f.bobPhase += 0.1;
+    f.moveAngle += rand(-0.05, 0.05);
+    f.x += Math.cos(f.moveAngle) * f.speed;
+    f.y += Math.sin(f.moveAngle) * f.speed;
+    if (f.x < 60 || f.x > WORLD_W - 60) f.moveAngle = Math.PI - f.moveAngle;
+    if (f.y < 60 || f.y > WORLD_H - 60) f.moveAngle = -f.moveAngle;
+    if (!f.greeted && dist(f, player) < player.r + 30) {
+      f.greeted = true;
+      fairySound();
+      const greetings = [
+        "🧚 Hi friend! Welcome to the forest!",
+        "🧚 Have you found a glowing mushroom?",
+        "🧚 The treasures are hidden deep in the woods!",
+        "🧚 You're so brave to explore here!",
+        "🧚 Sparkles are everywhere — collect them all!",
+      ];
+      showMessage(greetings[randInt(0, greetings.length-1)], 2400);
+    }
+  });
+
+  // Unicorns — gallop around, sparkle when you pet them
+  unicorns.forEach(u => {
+    u.gallopPhase += 0.18;
+    u.moveAngle += rand(-0.05, 0.05);
+    const nx = u.x + Math.cos(u.moveAngle) * u.speed;
+    const ny = u.y + Math.sin(u.moveAngle) * u.speed;
+    if (nx > 60 && nx < WORLD_W - 60) u.x = nx;
+    else u.moveAngle = Math.PI - u.moveAngle;
+    if (ny > 60 && ny < WORLD_H - 60) u.y = ny;
+    else u.moveAngle = -u.moveAngle;
+    if (u.x !== u.lastX) u.facing = u.x > u.lastX ? 1 : -1;
+    u.lastX = u.x;
+    if (!u.pet && dist(u, player) < player.r + 30) {
+      u.pet = true;
+      sparkleSound();
+      showMessage("🦄 The unicorn loves you! ✨", 2000);
+    }
+  });
+
+  // Dragons — fly, puff little smoke clouds, say hi
+  dragons.forEach(d => {
+    d.flapPhase += 0.2;
+    d.moveAngle += rand(-0.04, 0.04);
+    const nx = d.x + Math.cos(d.moveAngle) * d.speed;
+    const ny = d.y + Math.sin(d.moveAngle) * d.speed;
+    if (nx > 60 && nx < WORLD_W - 60) d.x = nx;
+    else d.moveAngle = Math.PI - d.moveAngle;
+    if (ny > 60 && ny < WORLD_H - 60) d.y = ny;
+    else d.moveAngle = -d.moveAngle;
+    if (d.x !== d.lastX) d.facing = d.x > d.lastX ? 1 : -1;
+    d.lastX = d.x;
+    // puff little smoke clouds occasionally
+    d.puffTimer -= 1;
+    if (d.puffTimer <= 0) {
+      d.puffTimer = randInt(60, 140);
+      d.puffs.push({ x: d.x + d.facing * 18, y: d.y - 4, life: 60, r: 4 });
+    }
+    d.puffs.forEach(p => { p.life -= 1; p.r += 0.25; p.y -= 0.4; });
+    d.puffs = d.puffs.filter(p => p.life > 0);
+    if (!d.greeted && dist(d, player) < player.r + 32) {
+      d.greeted = true;
+      mushroomSound();
+      const dragonGreets = [
+        "🐉 Hi! I'm a friendly dragon!",
+        "🐉 Wanna see me puff smoke?",
+        "🐉 Don't worry — I only breathe bubbles!",
+        "🐉 I love hiding in the forest!",
+      ];
+      showMessage(dragonGreets[randInt(0, dragonGreets.length-1)], 2200);
+    }
+  });
+
+  // People — wander gently and greet the player
+  people.forEach(p => {
+    p.bobPhase += 0.08;
+    if (p.greetCooldown > 0) p.greetCooldown -= dt;
+    // gentle wandering
+    p.moveAngle += rand(-0.04, 0.04);
+    const nx = p.x + Math.cos(p.moveAngle) * p.speed;
+    const ny = p.y + Math.sin(p.moveAngle) * p.speed;
+    if (nx > 60 && nx < WORLD_W - 60) p.x = nx;
+    else p.moveAngle = Math.PI - p.moveAngle;
+    if (ny > 60 && ny < WORLD_H - 60) p.y = ny;
+    else p.moveAngle = -p.moveAngle;
+    if (p.x !== p.lastX) p.facing = p.x > p.lastX ? 1 : -1;
+    p.lastX = p.x;
+    // greet when player is close
+    if (dist(p, player) < player.r + 28 && p.greetCooldown <= 0) {
+      p.greetCooldown = 6000;
+      const g = p.greetings[randInt(0, p.greetings.length - 1)];
+      showMessage(g, 2400);
+      fairySound();
+    }
+  });
+
+  // Trees gently sway
+  trees.forEach(t => { t.sway += 0.01; });
+
+  // Flowers wobble
+  flowers.forEach(f => { f.wobble += 0.05; });
+
+  // Hide message after timer
+  if (messageTimer > 0) {
+    messageTimer -= dt;
+    if (messageTimer <= 0) msgBox.style.display = 'none';
+  }
+}
+
+// ----- Drawing -----
+function worldToScreen(x, y) {
+  return [x - camera.x, y - camera.y];
+}
+function inView(x, y, pad = 80) {
+  return x > camera.x - pad && x < camera.x + W + pad &&
+         y > camera.y - pad && y < camera.y + H + pad;
+}
+
+function drawGround() {
+  // Ground tiles with subtle pattern
+  ctx.fillStyle = '#1f4d1f';
+  ctx.fillRect(0, 0, W, H);
+
+  // Grass tufts (cheap pattern)
+  const tile = 64;
+  const startX = Math.floor(camera.x / tile) * tile;
+  const startY = Math.floor(camera.y / tile) * tile;
+  ctx.strokeStyle = '#2e6b2e';
+  ctx.lineWidth = 2;
+  for (let x = startX; x < camera.x + W + tile; x += tile) {
+    for (let y = startY; y < camera.y + H + tile; y += tile) {
+      const [sx, sy] = worldToScreen(x, y);
+      // pseudo-random tufts
+      const seed = (x * 31 + y * 17) % 100;
+      if (seed < 30) {
+        ctx.beginPath();
+        ctx.moveTo(sx + 8, sy + 30);
+        ctx.lineTo(sx + 10, sy + 22);
+        ctx.moveTo(sx + 14, sy + 30);
+        ctx.lineTo(sx + 16, sy + 22);
+        ctx.stroke();
+      }
+    }
+  }
+}
+
+function drawPonds() {
+  ponds.forEach(p => {
+    if (!inView(p.x, p.y, 200)) return;
+    const [sx, sy] = worldToScreen(p.x, p.y);
+    // pond shadow
+    ctx.fillStyle = '#0e2a3d';
+    ctx.beginPath();
+    ctx.ellipse(sx, sy + 6, p.rx, p.ry, 0, 0, Math.PI*2);
+    ctx.fill();
+    // pond water
+    const grad = ctx.createRadialGradient(sx, sy, 10, sx, sy, p.rx);
+    grad.addColorStop(0, '#7bd9ff');
+    grad.addColorStop(1, '#2c7aa8');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.ellipse(sx, sy, p.rx, p.ry, 0, 0, Math.PI*2);
+    ctx.fill();
+    // ripples
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.ellipse(sx, sy, p.rx*0.5, p.ry*0.5, 0, 0, Math.PI*2);
+    ctx.stroke();
+  });
+}
+
+function drawFlowers() {
+  flowers.forEach(f => {
+    if (!inView(f.x, f.y, 40)) return;
+    const [sx, sy] = worldToScreen(f.x, f.y);
+    const wob = Math.sin(f.wobble) * 1.5;
+    // stem
+    ctx.strokeStyle = '#3a7a3a';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy + 8);
+    ctx.lineTo(sx + wob, sy);
+    ctx.stroke();
+    // petals
+    ctx.fillStyle = f.color;
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.arc(sx + wob + Math.cos(a) * f.size * 0.6, sy + Math.sin(a) * f.size * 0.6, f.size * 0.7, 0, Math.PI*2);
+      ctx.fill();
+    }
+    // center
+    ctx.fillStyle = '#fff5a0';
+    ctx.beginPath();
+    ctx.arc(sx + wob, sy, f.size * 0.5, 0, Math.PI*2);
+    ctx.fill();
+  });
+}
+
+function drawTrees() {
+  // Sort by y so closer trees draw on top
+  const visible = trees.filter(t => inView(t.x, t.y, 80));
+  visible.sort((a,b) => a.y - b.y);
+  visible.forEach(t => {
+    const [sx, sy] = worldToScreen(t.x, t.y);
+    const sway = Math.sin(t.sway) * 3;
+    // trunk
+    ctx.fillStyle = '#5a3b1a';
+    ctx.fillRect(sx - 8, sy, 16, 28);
+    // foliage layers
+    const c1 = `hsl(${t.hue}, 50%, 25%)`;
+    const c2 = `hsl(${t.hue}, 55%, 40%)`;
+    const c3 = `hsl(${t.hue}, 60%, 55%)`;
+    ctx.fillStyle = c1;
+    ctx.beginPath(); ctx.arc(sx + sway, sy - t.r*0.4, t.r, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = c2;
+    ctx.beginPath(); ctx.arc(sx + sway - t.r*0.3, sy - t.r*0.7, t.r*0.8, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(sx + sway + t.r*0.3, sy - t.r*0.7, t.r*0.8, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = c3;
+    ctx.beginPath(); ctx.arc(sx + sway, sy - t.r*1.0, t.r*0.6, 0, Math.PI*2); ctx.fill();
+  });
+}
+
+function drawSparkles() {
+  sparkles.forEach(s => {
+    if (s.collected) return;
+    if (!inView(s.x, s.y, 30)) return;
+    const [sx, sy] = worldToScreen(s.x, s.y);
+    const pulse = 4 + Math.sin(s.phase) * 2;
+    // glow
+    const grad = ctx.createRadialGradient(sx, sy, 0, sx, sy, pulse * 4);
+    grad.addColorStop(0, 'rgba(255,255,180,0.9)');
+    grad.addColorStop(1, 'rgba(255,255,180,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(sx, sy, pulse * 4, 0, Math.PI*2); ctx.fill();
+    // star
+    ctx.fillStyle = '#fffacc';
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2 + s.phase * 0.3;
+      const r = i % 2 === 0 ? pulse + 2 : pulse * 0.4;
+      const px = sx + Math.cos(a) * r;
+      const py = sy + Math.sin(a) * r;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+  });
+}
+
+function drawMushrooms() {
+  mushrooms.forEach(m => {
+    if (m.collected) return;
+    if (!inView(m.x, m.y, 40)) return;
+    const [sx, sy] = worldToScreen(m.x, m.y);
+    const pulse = Math.sin(m.pulse) * 0.15 + 1;
+    // glow
+    const grad = ctx.createRadialGradient(sx, sy - 6, 0, sx, sy - 6, 30 * pulse);
+    grad.addColorStop(0, m.color + 'cc');
+    grad.addColorStop(1, m.color + '00');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(sx, sy - 6, 30 * pulse, 0, Math.PI*2); ctx.fill();
+    // stem
+    ctx.fillStyle = '#fff2d9';
+    ctx.fillRect(sx - 5, sy - 6, 10, 14);
+    // cap
+    ctx.fillStyle = m.color;
+    ctx.beginPath();
+    ctx.arc(sx, sy - 6, 14 * pulse, Math.PI, Math.PI * 2);
+    ctx.fill();
+    // dots
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(sx - 5, sy - 10, 2.5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(sx + 5, sy - 12, 2.5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(sx + 1, sy - 7, 2, 0, Math.PI*2); ctx.fill();
+  });
+}
+
+function drawTreasures() {
+  treasures.forEach(t => {
+    if (t.collected) return;
+    if (!inView(t.x, t.y, 40)) return;
+    const [sx, sy] = worldToScreen(t.x, t.y);
+    // glow
+    const grad = ctx.createRadialGradient(sx, sy, 0, sx, sy, 40);
+    grad.addColorStop(0, 'rgba(255,215,255,0.6)');
+    grad.addColorStop(1, 'rgba(255,215,255,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(sx, sy, 40, 0, Math.PI*2); ctx.fill();
+    // gem
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(Math.sin(t.spin) * 0.2);
+    ctx.fillStyle = '#ff5fc6';
+    ctx.beginPath();
+    ctx.moveTo(0, -16);
+    ctx.lineTo(12, -4);
+    ctx.lineTo(8, 14);
+    ctx.lineTo(-8, 14);
+    ctx.lineTo(-12, -4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#ffd6f5';
+    ctx.beginPath();
+    ctx.moveTo(0, -16);
+    ctx.lineTo(6, -6);
+    ctx.lineTo(0, 0);
+    ctx.lineTo(-6, -6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  });
+}
+
+function drawFairies() {
+  fairies.forEach(f => {
+    if (!inView(f.x, f.y, 60)) return;
+    const [sx, sy] = worldToScreen(f.x, f.y);
+    const bob = Math.sin(f.bobPhase) * 4;
+    // wing glow
+    const grad = ctx.createRadialGradient(sx, sy + bob, 0, sx, sy + bob, 22);
+    grad.addColorStop(0, f.color + 'cc');
+    grad.addColorStop(1, f.color + '00');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(sx, sy + bob, 22, 0, Math.PI*2); ctx.fill();
+    // wings
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.beginPath(); ctx.ellipse(sx - 6, sy + bob - 2, 5, 9, -0.4, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(sx + 6, sy + bob - 2, 5, 9, 0.4, 0, Math.PI*2); ctx.fill();
+    // body
+    ctx.fillStyle = f.color;
+    ctx.beginPath(); ctx.arc(sx, sy + bob, 5, 0, Math.PI*2); ctx.fill();
+    // head
+    ctx.fillStyle = '#ffe0b2';
+    ctx.beginPath(); ctx.arc(sx, sy + bob - 7, 4, 0, Math.PI*2); ctx.fill();
+    // hair
+    ctx.fillStyle = '#a0522d';
+    ctx.beginPath(); ctx.arc(sx, sy + bob - 9, 3, 0, Math.PI*2); ctx.fill();
+  });
+}
+
+function drawUnicorn(u) {
+  if (!inView(u.x, u.y, 80)) return;
+  const [sx, sy] = worldToScreen(u.x, u.y);
+  const gallop = Math.sin(u.gallopPhase) * 3;
+  const f = u.facing;
+
+  // shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath(); ctx.ellipse(sx, sy + 16, 22, 5, 0, 0, Math.PI*2); ctx.fill();
+
+  // body
+  ctx.fillStyle = u.bodyColor;
+  ctx.beginPath();
+  ctx.ellipse(sx, sy + 2, 18, 11, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // legs (galloping)
+  ctx.fillStyle = u.bodyColor;
+  ctx.fillRect(sx - 12, sy + 8 + gallop, 4, 10);
+  ctx.fillRect(sx - 4,  sy + 8 - gallop, 4, 10);
+  ctx.fillRect(sx + 4,  sy + 8 + gallop, 4, 10);
+  ctx.fillRect(sx + 10, sy + 8 - gallop, 4, 10);
+
+  // tail (rainbow)
+  for (let i = 0; i < 5; i++) {
+    ctx.strokeStyle = `hsl(${(u.maneHue + i*40) % 360}, 90%, 65%)`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(sx - f*16, sy);
+    ctx.quadraticCurveTo(sx - f*22, sy + i*1.5, sx - f*22, sy + 8 + i*2);
+    ctx.stroke();
+  }
+
+  // neck + head
+  ctx.fillStyle = u.bodyColor;
+  ctx.beginPath();
+  ctx.ellipse(sx + f*12, sy - 6, 8, 8, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(sx + f*18, sy - 10, 7, 5, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // mane (rainbow)
+  for (let i = 0; i < 5; i++) {
+    ctx.fillStyle = `hsl(${(u.maneHue + i*40) % 360}, 90%, 65%)`;
+    ctx.beginPath();
+    ctx.arc(sx + f*8 - f*i*1.5, sy - 8 - i, 3.2, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // horn
+  ctx.fillStyle = '#ffd700';
+  ctx.beginPath();
+  ctx.moveTo(sx + f*15, sy - 14);
+  ctx.lineTo(sx + f*17, sy - 14);
+  ctx.lineTo(sx + f*16, sy - 22);
+  ctx.closePath();
+  ctx.fill();
+
+  // eye
+  ctx.fillStyle = '#000';
+  ctx.beginPath(); ctx.arc(sx + f*19, sy - 11, 1, 0, Math.PI*2); ctx.fill();
+
+  // sparkles around it if pet
+  if (u.pet) {
+    for (let i = 0; i < 4; i++) {
+      const a = (u.gallopPhase + i*Math.PI/2);
+      ctx.fillStyle = '#fff5a0';
+      ctx.beginPath();
+      ctx.arc(sx + Math.cos(a)*22, sy + Math.sin(a)*14, 1.6, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+}
+
+function drawDragon(d) {
+  if (!inView(d.x, d.y, 80)) return;
+  const [sx, sy] = worldToScreen(d.x, d.y);
+  const flap = Math.sin(d.flapPhase) * 4;
+  const f = d.facing;
+
+  // shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath(); ctx.ellipse(sx, sy + 16, 18, 4, 0, 0, Math.PI*2); ctx.fill();
+
+  // smoke puffs
+  d.puffs.forEach(p => {
+    const [psx, psy] = worldToScreen(p.x, p.y);
+    ctx.fillStyle = `rgba(220, 220, 230, ${p.life / 60 * 0.7})`;
+    ctx.beginPath();
+    ctx.arc(psx, psy, p.r, 0, Math.PI*2);
+    ctx.fill();
+  });
+
+  // wings (back layer)
+  ctx.fillStyle = d.color;
+  ctx.beginPath();
+  ctx.ellipse(sx - 4, sy - 8 + flap, 10, 6, -0.4, 0, Math.PI*2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(sx + 4, sy - 8 - flap, 10, 6, 0.4, 0, Math.PI*2);
+  ctx.fill();
+
+  // tail
+  ctx.strokeStyle = d.color;
+  ctx.lineWidth = 5;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(sx - f*12, sy + 4);
+  ctx.quadraticCurveTo(sx - f*22, sy + 10, sx - f*24, sy);
+  ctx.stroke();
+  // tail spike (heart shape)
+  ctx.fillStyle = '#ff5fc6';
+  ctx.beginPath();
+  ctx.arc(sx - f*24 - f*1, sy - 1, 2.2, 0, Math.PI*2);
+  ctx.arc(sx - f*24 + f*2, sy - 1, 2.2, 0, Math.PI*2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(sx - f*27, sy);
+  ctx.lineTo(sx - f*22, sy);
+  ctx.lineTo(sx - f*24.5, sy + 3.5);
+  ctx.closePath();
+  ctx.fill();
+
+  // body (round)
+  ctx.fillStyle = d.color;
+  ctx.beginPath();
+  ctx.ellipse(sx, sy + 2, 12, 10, 0, 0, Math.PI*2);
+  ctx.fill();
+  // belly
+  ctx.fillStyle = d.bellyColor;
+  ctx.beginPath();
+  ctx.ellipse(sx, sy + 5, 7, 6, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // legs
+  ctx.fillStyle = d.color;
+  ctx.fillRect(sx - 7, sy + 9, 4, 6);
+  ctx.fillRect(sx + 3, sy + 9, 4, 6);
+
+  // head
+  ctx.fillStyle = d.color;
+  ctx.beginPath();
+  ctx.arc(sx + f*10, sy - 6, 8, 0, Math.PI*2);
+  ctx.fill();
+  // snout
+  ctx.beginPath();
+  ctx.ellipse(sx + f*16, sy - 4, 5, 3.5, 0, 0, Math.PI*2);
+  ctx.fill();
+  // nostrils
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.arc(sx + f*18, sy - 5, 0.7, 0, Math.PI*2);
+  ctx.fill();
+  // big cute eye
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(sx + f*10, sy - 7, 2.6, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#000';
+  ctx.beginPath(); ctx.arc(sx + f*11, sy - 7, 1.4, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(sx + f*11.4, sy - 7.4, 0.6, 0, Math.PI*2); ctx.fill();
+
+  // little horns
+  ctx.fillStyle = '#fff5cc';
+  ctx.beginPath();
+  ctx.moveTo(sx + f*6, sy - 13);
+  ctx.lineTo(sx + f*8, sy - 13);
+  ctx.lineTo(sx + f*7, sy - 17);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(sx + f*11, sy - 14);
+  ctx.lineTo(sx + f*13, sy - 14);
+  ctx.lineTo(sx + f*12, sy - 18);
+  ctx.closePath();
+  ctx.fill();
+
+  // back spikes
+  ctx.fillStyle = '#fff5cc';
+  for (let i = 0; i < 3; i++) {
+    ctx.beginPath();
+    ctx.moveTo(sx - 4 + i*4, sy - 6);
+    ctx.lineTo(sx - 1 + i*4, sy - 11);
+    ctx.lineTo(sx + 2 + i*4, sy - 6);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+function drawUnicorns() {
+  const sorted = [...unicorns].sort((a,b) => a.y - b.y);
+  sorted.forEach(drawUnicorn);
+}
+function drawDragons() {
+  const sorted = [...dragons].sort((a,b) => a.y - b.y);
+  sorted.forEach(drawDragon);
+}
+
+function drawPerson(p) {
+  if (!inView(p.x, p.y, 60)) return;
+  const [sx, sy] = worldToScreen(p.x, p.y);
+  const bob = Math.sin(p.bobPhase) * 1.2;
+
+  // shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.beginPath(); ctx.ellipse(sx, sy + 18, 12, 4, 0, 0, Math.PI*2); ctx.fill();
+
+  // legs
+  ctx.fillStyle = '#3a2a1a';
+  ctx.fillRect(sx - 6, sy + 8 - bob, 4, 10);
+  ctx.fillRect(sx + 2, sy + 8 + bob, 4, 10);
+
+  // body
+  ctx.fillStyle = p.color;
+  ctx.beginPath();
+  ctx.moveTo(sx - 11, sy + 10);
+  ctx.lineTo(sx + 11, sy + 10);
+  ctx.lineTo(sx + 7, sy - 6);
+  ctx.lineTo(sx - 7, sy - 6);
+  ctx.closePath();
+  ctx.fill();
+
+  // arms
+  ctx.fillStyle = p.skin;
+  ctx.beginPath(); ctx.arc(sx - 9, sy + 1, 2.6, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(sx + 9, sy + 1, 2.6, 0, Math.PI*2); ctx.fill();
+
+  // head
+  ctx.fillStyle = p.skin;
+  ctx.beginPath(); ctx.arc(sx, sy - 12, 7, 0, Math.PI*2); ctx.fill();
+
+  // eyes
+  ctx.fillStyle = '#000';
+  ctx.beginPath(); ctx.arc(sx - 2 + p.facing*0.5, sy - 13, 1.2, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(sx + 3 + p.facing*0.5, sy - 13, 1.2, 0, Math.PI*2); ctx.fill();
+
+  // smile
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(sx + p.facing*0.3, sy - 10, 1.6, 0.2, Math.PI - 0.2); ctx.stroke();
+
+  // type-specific hat / accessory
+  if (p.type === 'wizard') {
+    // pointy hat with stars
+    ctx.fillStyle = p.hatColor;
+    ctx.beginPath();
+    ctx.moveTo(sx - 8, sy - 17);
+    ctx.lineTo(sx + 8, sy - 17);
+    ctx.lineTo(sx, sy - 32);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#fff5a0';
+    ctx.beginPath(); ctx.arc(sx + 1, sy - 24, 1.4, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(sx - 3, sy - 20, 1, 0, Math.PI*2); ctx.fill();
+    // beard
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(sx, sy - 7, 4, 0, Math.PI); ctx.fill();
+  } else if (p.type === 'princess') {
+    // hair
+    ctx.fillStyle = '#ffd700';
+    ctx.beginPath(); ctx.arc(sx, sy - 14, 8, Math.PI, Math.PI*2); ctx.fill();
+    ctx.fillRect(sx - 8, sy - 14, 16, 6);
+    // crown
+    ctx.fillStyle = p.hatColor;
+    ctx.beginPath();
+    ctx.moveTo(sx - 6, sy - 19);
+    ctx.lineTo(sx - 4, sy - 24);
+    ctx.lineTo(sx - 2, sy - 19);
+    ctx.lineTo(sx,     sy - 25);
+    ctx.lineTo(sx + 2, sy - 19);
+    ctx.lineTo(sx + 4, sy - 24);
+    ctx.lineTo(sx + 6, sy - 19);
+    ctx.closePath();
+    ctx.fill();
+  } else if (p.type === 'knight') {
+    // helmet
+    ctx.fillStyle = p.hatColor;
+    ctx.beginPath(); ctx.arc(sx, sy - 13, 8, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#1a1a2a';
+    ctx.fillRect(sx - 5, sy - 13, 10, 3);
+    // plume
+    ctx.fillStyle = '#ff3a3a';
+    ctx.beginPath();
+    ctx.moveTo(sx - 2, sy - 21);
+    ctx.lineTo(sx + 2, sy - 21);
+    ctx.lineTo(sx + 4, sy - 28);
+    ctx.lineTo(sx,     sy - 26);
+    ctx.lineTo(sx - 4, sy - 28);
+    ctx.closePath();
+    ctx.fill();
+    // shield
+    ctx.fillStyle = '#3a6ae0';
+    ctx.beginPath();
+    ctx.ellipse(sx - 12, sy + 2, 4, 6, 0, 0, Math.PI*2);
+    ctx.fill();
+  } else if (p.type === 'explorer') {
+    // hair
+    ctx.fillStyle = '#5a3a1a';
+    ctx.beginPath(); ctx.arc(sx, sy - 16, 7, Math.PI, Math.PI*2); ctx.fill();
+    // safari hat
+    ctx.fillStyle = p.hatColor;
+    ctx.fillRect(sx - 9, sy - 17, 18, 3);
+    ctx.beginPath(); ctx.arc(sx, sy - 18, 6, Math.PI, Math.PI*2); ctx.fill();
+    // backpack strap
+    ctx.fillStyle = '#3a2010';
+    ctx.fillRect(sx - 8, sy - 4, 2, 12);
+  } else if (p.type === 'witch') {
+    // pointy witch hat
+    ctx.fillStyle = p.hatColor;
+    ctx.beginPath();
+    ctx.moveTo(sx - 10, sy - 16);
+    ctx.lineTo(sx + 10, sy - 16);
+    ctx.lineTo(sx + 2,  sy - 32);
+    ctx.closePath();
+    ctx.fill();
+    // hat band
+    ctx.fillStyle = '#ffaa3a';
+    ctx.fillRect(sx - 10, sy - 17, 20, 2);
+    // green hair tuft
+    ctx.fillStyle = '#7aaa3a';
+    ctx.beginPath(); ctx.arc(sx - 5, sy - 9, 2, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(sx + 5, sy - 9, 2, 0, Math.PI*2); ctx.fill();
+  } else if (p.type === 'gnome') {
+    // (smaller character)
+    // pointy red hat
+    ctx.fillStyle = p.hatColor;
+    ctx.beginPath();
+    ctx.moveTo(sx - 7, sy - 16);
+    ctx.lineTo(sx + 7, sy - 16);
+    ctx.lineTo(sx, sy - 28);
+    ctx.closePath();
+    ctx.fill();
+    // beard
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(sx, sy - 6, 5, 0, Math.PI); ctx.fill();
+    ctx.fillRect(sx - 5, sy - 8, 10, 4);
+  } else if (p.type === 'kid') {
+    // hair
+    ctx.fillStyle = '#3a2010';
+    ctx.beginPath(); ctx.arc(sx, sy - 16, 7, Math.PI, Math.PI*2); ctx.fill();
+    ctx.fillRect(sx - 7, sy - 16, 14, 3);
+    // baseball cap
+    ctx.fillStyle = p.hatColor;
+    ctx.beginPath(); ctx.arc(sx, sy - 17, 7, Math.PI, Math.PI*2); ctx.fill();
+    ctx.fillRect(sx, sy - 17, 10, 2);
+  } else if (p.type === 'fairy_queen') {
+    // sparkly glow
+    const grad = ctx.createRadialGradient(sx, sy, 0, sx, sy, 30);
+    grad.addColorStop(0, 'rgba(255,200,255,0.5)');
+    grad.addColorStop(1, 'rgba(255,200,255,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(sx, sy, 30, 0, Math.PI*2); ctx.fill();
+    // flowing hair
+    ctx.fillStyle = '#ffd6f5';
+    ctx.beginPath(); ctx.arc(sx, sy - 14, 9, Math.PI, Math.PI*2); ctx.fill();
+    ctx.fillRect(sx - 9, sy - 14, 18, 8);
+    // big crown
+    ctx.fillStyle = '#ffd700';
+    ctx.beginPath();
+    ctx.moveTo(sx - 8, sy - 19);
+    ctx.lineTo(sx - 5, sy - 27);
+    ctx.lineTo(sx - 2, sy - 21);
+    ctx.lineTo(sx,     sy - 29);
+    ctx.lineTo(sx + 2, sy - 21);
+    ctx.lineTo(sx + 5, sy - 27);
+    ctx.lineTo(sx + 8, sy - 19);
+    ctx.closePath();
+    ctx.fill();
+    // crown gem
+    ctx.fillStyle = '#ff5fc6';
+    ctx.beginPath(); ctx.arc(sx, sy - 24, 1.6, 0, Math.PI*2); ctx.fill();
+    // small wings behind body
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.beginPath(); ctx.ellipse(sx - 12, sy - 2, 5, 9, -0.4, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(sx + 12, sy - 2, 5, 9, 0.4, 0, Math.PI*2); ctx.fill();
+  }
+}
+
+function drawPeople() {
+  // sort by y so closer ones draw on top
+  const sorted = [...people].sort((a,b) => a.y - b.y);
+  sorted.forEach(drawPerson);
+}
+
+function drawPlayer() {
+  const [sx, sy] = worldToScreen(player.x, player.y);
+  const bob = Math.sin(player.walkPhase) * 1.5;
+  // shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.beginPath(); ctx.ellipse(sx, sy + 18, 14, 5, 0, 0, Math.PI*2); ctx.fill();
+  // legs
+  ctx.fillStyle = '#5a3a90';
+  ctx.fillRect(sx - 7, sy + 8 - bob, 5, 10);
+  ctx.fillRect(sx + 2, sy + 8 + bob, 5, 10);
+  // body (dress)
+  ctx.fillStyle = '#ff5fa2';
+  ctx.beginPath();
+  ctx.moveTo(sx - 12, sy + 10);
+  ctx.lineTo(sx + 12, sy + 10);
+  ctx.lineTo(sx + 8, sy - 6);
+  ctx.lineTo(sx - 8, sy - 6);
+  ctx.closePath();
+  ctx.fill();
+  // arms
+  ctx.fillStyle = '#ffe0b2';
+  ctx.beginPath(); ctx.arc(sx - 10, sy, 3, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(sx + 10, sy, 3, 0, Math.PI*2); ctx.fill();
+  // head
+  ctx.fillStyle = '#ffe0b2';
+  ctx.beginPath(); ctx.arc(sx, sy - 12, 8, 0, Math.PI*2); ctx.fill();
+  // hair
+  ctx.fillStyle = '#a0522d';
+  ctx.beginPath(); ctx.arc(sx, sy - 16, 8, Math.PI, Math.PI * 2); ctx.fill();
+  ctx.fillRect(sx - 8, sy - 16, 16, 4);
+  // eyes
+  ctx.fillStyle = '#000';
+  ctx.beginPath(); ctx.arc(sx - 3 + player.facing, sy - 12, 1.4, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(sx + 3 + player.facing, sy - 12, 1.4, 0, Math.PI*2); ctx.fill();
+  // smile
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.arc(sx + player.facing*0.5, sy - 9, 2, 0.2, Math.PI - 0.2); ctx.stroke();
+  // crown sparkle
+  ctx.fillStyle = '#ffd700';
+  ctx.beginPath();
+  ctx.moveTo(sx - 5, sy - 19);
+  ctx.lineTo(sx - 2, sy - 23);
+  ctx.lineTo(sx, sy - 19);
+  ctx.lineTo(sx + 2, sy - 23);
+  ctx.lineTo(sx + 5, sy - 19);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawMinimap() {
+  // tiny minimap
+  const mw = 140, mh = 105;
+  const mx = W - mw - 12, my = H - mh - 12;
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  ctx.fillRect(mx, my, mw, mh);
+  ctx.strokeStyle = '#ffd6f5';
+  ctx.strokeRect(mx, my, mw, mh);
+  // player
+  const px = mx + (player.x / WORLD_W) * mw;
+  const py = my + (player.y / WORLD_H) * mh;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(px, py, 3, 0, Math.PI*2); ctx.fill();
+  // remaining treasures
+  ctx.fillStyle = '#ff5fc6';
+  treasures.forEach(t => {
+    if (t.collected) return;
+    const tx = mx + (t.x / WORLD_W) * mw;
+    const ty = my + (t.y / WORLD_H) * mh;
+    ctx.beginPath(); ctx.arc(tx, ty, 2, 0, Math.PI*2); ctx.fill();
+  });
+  // people on minimap
+  ctx.fillStyle = '#ffe14c';
+  people.forEach(p => {
+    const px2 = mx + (p.x / WORLD_W) * mw;
+    const py2 = my + (p.y / WORLD_H) * mh;
+    ctx.beginPath(); ctx.arc(px2, py2, 1.6, 0, Math.PI*2); ctx.fill();
+  });
+  // unicorns on minimap (rainbow)
+  unicorns.forEach((u, i) => {
+    ctx.fillStyle = `hsl(${(u.maneHue) % 360}, 90%, 70%)`;
+    const ux = mx + (u.x / WORLD_W) * mw;
+    const uy = my + (u.y / WORLD_H) * mh;
+    ctx.beginPath(); ctx.arc(ux, uy, 2, 0, Math.PI*2); ctx.fill();
+  });
+  // dragons on minimap
+  dragons.forEach(d => {
+    ctx.fillStyle = d.color;
+    const dx = mx + (d.x / WORLD_W) * mw;
+    const dy = my + (d.y / WORLD_H) * mh;
+    ctx.beginPath(); ctx.arc(dx, dy, 2, 0, Math.PI*2); ctx.fill();
+  });
+}
+
+function draw() {
+  drawGround();
+  drawPonds();
+  drawFlowers();
+  drawSparkles();
+  drawMushrooms();
+  drawTreasures();
+  drawFairies();
+  drawUnicorns();
+  drawDragons();
+  drawPeople();
+  drawTrees();   // trees on top so player walks "through" them
+  drawPlayer();
+  drawMinimap();
+}
+
+// ----- Main loop -----
+let lastTime = performance.now();
+function loop(now) {
+  const dt = now - lastTime;
+  lastTime = now;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// kick the audio after first interaction
+window.addEventListener('keydown', ensureAudio, { once: true });
+window.addEventListener('click', ensureAudio, { once: true });
+</script>
+</body>
+</html>
