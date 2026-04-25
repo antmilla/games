@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pictionary Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Arial', sans-serif;
+        }
+        #gameContainer {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 36px;
+        }
+        .subtitle {
+            color: #999;
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+        .game-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            gap: 20px;
+        }
+        .info-box {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 10px;
+            flex: 1;
+        }
+        .info-label {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .info-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        #canvas {
+            border: 4px solid #667eea;
+            border-radius: 15px;
+            cursor: crosshair;
+            display: block;
+            margin: 0 auto 20px;
+            background: white;
+        }
+        .tools {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .color-btn {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #ccc;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .color-btn:hover {
+            transform: scale(1.1);
+        }
+        .color-btn.active {
+            border-color: #333;
+            transform: scale(1.15);
+        }
+        .tool-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            font-size: 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .tool-btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+        .size-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        #brushSize {
+            width: 100px;
+        }
+        .answer-section {
+            margin-top: 20px;
+        }
+        #guessInput {
+            font-size: 18px;
+            padding: 12px;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            width: 300px;
+            text-align: center;
+            margin-right: 10px;
+        }
+        .result {
+            margin-top: 15px;
+            font-size: 20px;
+            font-weight: bold;
+            min-height: 30px;
+        }
+        .correct {
+            color: #4CAF50;
+        }
+        .incorrect {
+            color: #f44336;
+        }
+        .author {
+            margin-top: 20px;
+            color: #999;
+            font-size: 14px;
+        }
+        .guess-option {
+            background: #f0f0f0;
+            border: 2px solid #ccc;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 16px;
+            min-width: 120px;
+            transition: all 0.3s;
+        }
+        .guess-option.correct {
+            background: #4CAF50;
+            color: white;
+            border-color: #388E3C;
+            transform: scale(1.1);
+        }
+        .guess-option.wrong {
+            background: #f44336;
+            color: white;
+            border-color: #d32f2f;
+        }
+        .guess-option.computer-pick {
+            border: 3px solid #667eea;
+            box-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <h1>Pictionary</h1>
+        <div class="subtitle">Draw the word!</div>
+
+        <div class="game-info">
+            <div class="info-box">
+                <div class="info-label">Score</div>
+                <div class="info-value" id="score">0</div>
+            </div>
+            <div class="info-box">
+                <div class="info-label">Time</div>
+                <div class="info-value" id="timer">60</div>
+            </div>
+            <div class="info-box">
+                <div class="info-label">Round</div>
+                <div class="info-value" id="round">1</div>
+            </div>
+        </div>
+
+        <div style="margin-bottom: 15px;">
+            <div style="font-size: 14px; color: #666; margin-bottom: 5px;">Draw this:</div>
+            <div id="wordDisplay" style="font-size: 28px; font-weight: bold; color: #667eea; min-height: 40px;">???</div>
+        </div>
+
+        <canvas id="canvas" width="600" height="400"></canvas>
+
+        <div class="tools">
+            <div class="color-btn active" style="background: black;" data-color="#000000"></div>
+            <div class="color-btn" style="background: red;" data-color="#ff0000"></div>
+            <div class="color-btn" style="background: blue;" data-color="#0000ff"></div>
+            <div class="color-btn" style="background: green;" data-color="#00ff00"></div>
+            <div class="color-btn" style="background: yellow;" data-color="#ffff00"></div>
+            <div class="color-btn" style="background: orange;" data-color="#ff8800"></div>
+            <div class="color-btn" style="background: purple;" data-color="#8800ff"></div>
+            <div class="color-btn" style="background: brown;" data-color="#8B4513"></div>
+
+            <div class="size-control">
+                <label>Size:</label>
+                <input type="range" id="brushSize" min="1" max="20" value="3">
+                <span id="sizeValue">3</span>
+            </div>
+
+            <button class="tool-btn" onclick="clearCanvas()">Clear</button>
+            <button class="tool-btn" onclick="skipWord()">Skip Word</button>
+        </div>
+
+        <div class="answer-section">
+            <button class="tool-btn" id="doneBtn" onclick="showGuessing()" style="font-size: 20px; padding: 15px 40px;">Done Drawing!</button>
+
+            <div id="guessingSection" style="display: none; margin-top: 20px;">
+                <div style="font-size: 18px; color: #333; margin-bottom: 15px;">🤖 Computer is guessing...</div>
+                <div id="guessOptions" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 15px;"></div>
+                <div id="computerGuess" style="font-size: 20px; font-weight: bold; color: #667eea; min-height: 30px;"></div>
+            </div>
+        </div>
+
+        <div class="result" id="result"></div>
+
+        <div class="author">by camilla f</div>
+    </div>
+    <script src="game.js"></script>
+</body>
+</html>

@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ninja vs Robots 🥷🤖</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #1a1a1a;
+            font-family: 'Arial', sans-serif;
+        }
+
+        #gameContainer {
+            text-align: center;
+        }
+
+        canvas {
+            border: 5px solid #ff0000;
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(255, 0, 0, 0.5);
+            background: #000;
+        }
+
+        #info {
+            color: #ff0000;
+            font-size: 20px;
+            margin-top: 20px;
+            text-shadow: 0 0 10px rgba(255, 0, 0, 0.8);
+        }
+
+        .highlight {
+            color: #00ff00;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <h1 style="color: #ff0000; text-shadow: 0 0 20px rgba(255, 0, 0, 0.8);">🥷 NINJA VS ROBOTS 🤖</h1>
+        <canvas id="gameCanvas" width="1000" height="600"></canvas>
+        <div id="info">
+            <div>Controls: <span class="highlight">ARROW KEYS</span> to move | <span class="highlight">SPACE</span> to jump</div>
+            <div><span class="highlight">Q</span> = Ninja Star | <span class="highlight">W</span> = Sword | <span class="highlight">E</span> = Punch | <span class="highlight">R</span> = Magic</div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Game state
+        let gameState = 'intro'; // intro, playing, levelComplete, gameOver
+        let currentLevel = 0;
+        let score = 0;
+        let robotsDefeated = 0;
+        let frameCount = 0;
+
+        // Levels
+        const levels = [
+            {name: 'CITY STREETS', color1: '#1a0a2e', color2: '#0f051d', robots: 3, robotSpeed: 1},
+            {name: 'ROBOT FACTORY', color1: '#2d1b00', color2: '#1a1000', robots: 5, robotSpeed: 1.2},
+            {name: 'ROOFTOPS', color1: '#000a1a', color2: '#000510', robots: 7, robotSpeed: 1.4},
+            {name: 'DARK CASTLE', color1: '#1a001a', color2: '#0f000f', robots: 10, robotSpeed: 1.6},
+            {name: 'DARK FOREST', color1: '#001a00', color2: '#000f00', robots: 12, robotSpeed: 1.8}
+        ];
+
+        // Ninja properties
+        const ninja = {
+            x: 100,
+            y: canvas.height - 100,
+            width: 40,
+            height: 60,
+            velocityX: 0,
+            velocityY: 0,
+            speed: 5,
+            jumpPower: -15,
+            gravity: 0.6,
+            isOnGround: false,
+            health: 100,
+            maxHealth: 100,
+            direction: 1, // 1 = right, -1 = left
+            isAttacking: false,
+            attackCooldown: 0
+        };
+
+        // Arrays
+        let robots = [];
+        let projectiles = [];
+        let particles = [];
+        let magicBlasts = [];
+
+        // Keys
+        const keys = {};
+
+        // Robot class
+        class Robot {
+            constructor(x, y, speed) {
+                this.x = x;
+                this.y = y;
+                this.width = 35;
+                this.height = 50;
+                this.speed = speed;
+                this.health = 30;
+                this.maxHealth = 30;
+                this.attackCooldown = 0;
+            }
+
+            update() {
+                // Move towards ninja
+                if (this.x < ninja.x) {
+                    this.x += this.speed;
+                } else {
+                    this.x -= this.speed;
+                }
+
+                // Attack if close
+                if (Math.abs(this.x - ninja.x) < 50 && this.attackCooldown === 0) {
+                    this.attack();
+                    this.attackCooldown = 60;
+                }
+
+                if (this.attackCooldown > 0) this.attackCooldown--;
+            }
+
+            attack() {
+                // Robot attacks ninja
+                if (Math.abs(this.x - ninja.x) < 60 && Math.abs(this.y - ninja.y) < 80) {
+                    ninja.health -= 5;
+                    createParticles(ninja.x, ninja.y, '#ff0000', 5);
+                }
+            }
+
+            draw() {
+                // Robot body (metallic gray)
+                ctx.fillStyle = '#808080';
+                ctx.fillRect(this.x - this.width/2, this.y - this.height, this.width, this.height);
+
+                // Robot head
+                ctx.fillStyle = '#606060';
+                ctx.fillRect(this.x - 15, this.y - this.height - 20, 30, 20);
+
+                // Red eyes
+                ctx.fillStyle = '#ff0000';
+                ctx.fillRect(this.x - 10, this.y - this.height - 12, 6, 6);
+                ctx.fillRect(this.x + 4, this.y - this.height - 12, 6, 6);
+
+                // Robot arms
+                ctx.fillStyle = '#707070';
+                ctx.fillRect(this.x - this.width/2 - 8, this.y - this.height + 10, 8, 25);
+                ctx.fillRect(this.x + this.width/2, this.y - this.height + 10, 8, 25);
+
+                // Health bar
+                ctx.fillStyle = '#ff0000';
+                ctx.fillRect(this.x - 20, this.y - this.height - 30, 40, 4);
+                ctx.fillStyle = '#00ff00';
+                ctx.fillRect(this.x - 20, this.y - this.height - 30, 40 * (this.health / this.maxHealth), 4);
+            }
+        }
+
+        // Projectile class (ninja stars)
+        class Projectile {
+            constructor(x, y, direction) {
+                this.x = x;
+                this.y = y;
+                this.speed = 10 * direction;
+                this.size = 8;
+                this.rotation = 0;
+            }
+
+            update() {
+                this.x += this.speed;
+                this.rotation += 0.3;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+                ctx.fillStyle = '#c0c0c0';
+                // Draw 4-pointed star
+                ctx.beginPath();
+                for (let i = 0; i < 4; i++) {
+                    const angle = (i * Math.PI) / 2;
+                    const x = Math.cos(angle) * this.size;
+                    const y = Math.sin(angle) * this.size;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // Magic blast class
+        class MagicBlast {
+            constructor(x, y, direction) {
+                this.x = x;
+                this.y = y;
+                this.direction = direction;
+                this.size = 30;
+                this.speed = 8;
+                this.life = 60;
+            }
+
+            update() {
+                this.x += this.speed * this.direction;
+                this.life--;
+                this.size += 0.5;
+            }
+
+            draw() {
+                const alpha = this.life / 60;
+                ctx.fillStyle = `rgba(138, 43, 226, ${alpha})`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // Particle effect
+        function createParticles(x, y, color, count) {
+            // Limit particles to prevent lag
+            if (particles.length > 50) return;
+
+            for (let i = 0; i < Math.min(count, 5); i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 8,
+                    vy: (Math.random() - 0.5) * 8,
+                    life: 20,
+                    color: color
+                });
+            }
+        }
+
+        // Update particles
+        function updateParticles() {
+            particles = particles.filter(p => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life--;
+                return p.life > 0;
+            });
+        }
+
+        // Draw particles
+        function drawParticles() {
+            particles.forEach(p => {
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.life / 30;
+                ctx.fillRect(p.x, p.y, 4, 4);
+                ctx.globalAlpha = 1;
+            });
+        }
+
+        // Spawn robots for current level
+        function spawnRobots() {
+            robots = [];
+            const level = levels[currentLevel];
+            for (let i = 0; i < level.robots; i++) {
+                const x = canvas.width + i * 150;
+                const y = canvas.height - 100;
+                robots.push(new Robot(x, y, level.robotSpeed));
+            }
+        }
+
+        // Draw ninja
+        function drawNinja() {
+            ctx.save();
+
+            // Flip ninja based on direction
+            if (ninja.direction === -1) {
+                ctx.scale(-1, 1);
+                ctx.translate(-ninja.x * 2, 0);
+            }
+
+            // Ninja body (black outfit)
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(ninja.x - 20, ninja.y - 60, 40, 60);
+
+            // Ninja head
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(ninja.x - 15, ninja.y - 80, 30, 20);
+
+            // Ninja eyes (white)
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(ninja.x - 10, ninja.y - 72, 6, 4);
+            ctx.fillRect(ninja.x + 4, ninja.y - 72, 6, 4);
+
+            // Ninja belt (red)
+            ctx.fillStyle = '#ff0000';
+            ctx.fillRect(ninja.x - 20, ninja.y - 40, 40, 5);
+
+            // Sword on back (if not attacking with it)
+            if (!ninja.isAttacking || keys['w'] !== true) {
+                ctx.fillStyle = '#c0c0c0';
+                ctx.fillRect(ninja.x + 15, ninja.y - 70, 3, 30);
+                ctx.fillStyle = '#8b4513';
+                ctx.fillRect(ninja.x + 13, ninja.y - 75, 7, 10);
+            }
+
+            // Sword swing animation
+            if (keys['w'] && ninja.isAttacking) {
+                ctx.strokeStyle = '#c0c0c0';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(ninja.x + 30 * ninja.direction, ninja.y - 40, 35, -Math.PI/4, Math.PI/4);
+                ctx.stroke();
+            }
+
+            ctx.restore();
+
+            // Health bar
+            ctx.fillStyle = '#ff0000';
+            ctx.fillRect(ninja.x - 25, ninja.y - 90, 50, 5);
+            ctx.fillStyle = '#00ff00';
+            ctx.fillRect(ninja.x - 25, ninja.y - 90, 50 * (ninja.health / ninja.maxHealth), 5);
+        }
+
+        // Draw background
+        function drawBackground() {
+            const level = levels[currentLevel];
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, level.color1);
+            gradient.addColorStop(1, level.color2);
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Ground
+            ctx.fillStyle = '#0a0a0a';
+            ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
+
+            // Stars
+            ctx.fillStyle = '#ffffff';
+            for (let i = 0; i < 30; i++) {
+                const x = (i * 97) % canvas.width;
+                const y = (i * 53) % (canvas.height - 100);
+                const size = (i % 3) + 1;
+                ctx.fillRect(x, y, size, size);
+            }
+        }
+
+        // Draw intro screen
+        function drawIntro() {
+            drawBackground();
+
+            ctx.fillStyle = '#ff0000';
+            ctx.font = 'bold 72px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('NINJA VS ROBOTS', canvas.width / 2, 150);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '36px Arial';
+            ctx.fillText('Fight through 5 levels!', canvas.width / 2, 250);
+
+            // Draw sample ninja
+            const tempNinja = {...ninja, x: canvas.width / 2 - 100, y: canvas.height / 2};
+            const savedNinja = {...ninja};
+            Object.assign(ninja, tempNinja);
+            drawNinja();
+            Object.assign(ninja, savedNinja);
+
+            // Draw sample robot
+            const tempRobot = new Robot(canvas.width / 2 + 100, canvas.height / 2, 1);
+            tempRobot.draw();
+
+            // Controls
+            ctx.fillStyle = '#00ff00';
+            ctx.font = 'bold 24px Arial';
+            ctx.fillText('Q = Ninja Star | W = Sword | E = Punch | R = Magic', canvas.width / 2, 450);
+
+            // Flashing start text
+            if (Math.floor(frameCount / 30) % 2 === 0) {
+                ctx.fillStyle = '#ffff00';
+                ctx.font = 'bold 48px Arial';
+                ctx.fillText('PRESS SPACE TO START', canvas.width / 2, 550);
+            }
+
+            // Credits
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '20px Arial';
+            ctx.fillText('Made by Camilla Fernandez and Mattea Fernandez', canvas.width / 2, canvas.height - 20);
+        }
+
+        // Draw level complete screen
+        function drawLevelComplete() {
+            drawBackground();
+
+            ctx.fillStyle = '#00ff00';
+            ctx.font = 'bold 64px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('LEVEL COMPLETE!', canvas.width / 2, canvas.height / 2 - 50);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '36px Arial';
+            ctx.fillText(`Robots Defeated: ${robotsDefeated}`, canvas.width / 2, canvas.height / 2 + 20);
+            ctx.fillText(`Score: ${score}`, canvas.width / 2, canvas.height / 2 + 70);
+
+            if (currentLevel < levels.length - 1) {
+                ctx.font = 'bold 32px Arial';
+                ctx.fillText('Press SPACE for next level', canvas.width / 2, canvas.height / 2 + 140);
+            } else {
+                ctx.fillStyle = '#ffd700';
+                ctx.font = 'bold 48px Arial';
+                ctx.fillText('YOU WIN! ALL LEVELS COMPLETE!', canvas.width / 2, canvas.height / 2 + 140);
+            }
+        }
+
+        // Draw game over screen
+        function drawGameOver() {
+            drawBackground();
+
+            ctx.fillStyle = '#ff0000';
+            ctx.font = 'bold 64px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 50);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '36px Arial';
+            ctx.fillText(`Level: ${currentLevel + 1}`, canvas.width / 2, canvas.height / 2 + 20);
+            ctx.fillText(`Robots Defeated: ${robotsDefeated}`, canvas.width / 2, canvas.height / 2 + 70);
+            ctx.fillText(`Score: ${score}`, canvas.width / 2, canvas.height / 2 + 120);
+
+            ctx.font = 'bold 32px Arial';
+            ctx.fillText('Press SPACE to try again', canvas.width / 2, canvas.height / 2 + 180);
+        }
+
+        // Update ninja
+        function updateNinja() {
+            // Horizontal movement
+            if (keys['ArrowLeft']) {
+                ninja.velocityX = -ninja.speed;
+                ninja.direction = -1;
+            } else if (keys['ArrowRight']) {
+                ninja.velocityX = ninja.speed;
+                ninja.direction = 1;
+            } else {
+                ninja.velocityX = 0;
+            }
+
+            ninja.x += ninja.velocityX;
+
+            // Keep ninja on screen
+            if (ninja.x < 30) ninja.x = 30;
+            if (ninja.x > canvas.width - 30) ninja.x = canvas.width - 30;
+
+            // Gravity and jumping
+            ninja.velocityY += ninja.gravity;
+            ninja.y += ninja.velocityY;
+
+            // Ground collision
+            if (ninja.y >= canvas.height - 100) {
+                ninja.y = canvas.height - 100;
+                ninja.velocityY = 0;
+                ninja.isOnGround = true;
+            } else {
+                ninja.isOnGround = false;
+            }
+
+            // Attack cooldown
+            if (ninja.attackCooldown > 0) {
+                ninja.attackCooldown--;
+            }
+        }
+
+        // Update projectiles
+        function updateProjectiles() {
+            projectiles = projectiles.filter(p => {
+                p.update();
+                return p.x > 0 && p.x < canvas.width;
+            });
+        }
+
+        // Update magic blasts
+        function updateMagicBlasts() {
+            magicBlasts = magicBlasts.filter(m => {
+                m.update();
+                return m.life > 0;
+            });
+        }
+
+        // Check collisions
+        function checkCollisions() {
+            // Projectiles hit robots
+            projectiles.forEach((proj, pIndex) => {
+                robots.forEach((robot, rIndex) => {
+                    if (Math.abs(proj.x - robot.x) < 30 && Math.abs(proj.y - robot.y + 25) < 40) {
+                        robot.health -= 15;
+                        projectiles.splice(pIndex, 1);
+                        createParticles(robot.x, robot.y - 25, '#ffff00', 8);
+                        score += 10;
+
+                        if (robot.health <= 0) {
+                            robots.splice(rIndex, 1);
+                            robotsDefeated++;
+                            score += 50;
+                            createParticles(robot.x, robot.y - 25, '#00ff00', 15);
+                        }
+                    }
+                });
+            });
+
+            // Magic blasts hit robots
+            magicBlasts.forEach(magic => {
+                robots.forEach((robot, rIndex) => {
+                    if (Math.abs(magic.x - robot.x) < 50 && Math.abs(magic.y - robot.y + 25) < 60) {
+                        robot.health -= 50;
+                        createParticles(robot.x, robot.y - 25, '#8b00ff', 15);
+                        score += 20;
+
+                        if (robot.health <= 0) {
+                            robots.splice(rIndex, 1);
+                            robotsDefeated++;
+                            score += 50;
+                            createParticles(robot.x, robot.y - 25, '#00ff00', 20);
+                        }
+                    }
+                });
+            });
+
+            // Sword attack hits robots
+            if (keys['w'] && ninja.isAttacking) {
+                robots.forEach((robot, rIndex) => {
+                    const distance = Math.abs(robot.x - ninja.x);
+                    if (distance < 60 && Math.abs(robot.y - ninja.y) < 80) {
+                        robot.health -= 0.5;
+                        createParticles(robot.x, robot.y - 25, '#ffffff', 2);
+                        score += 1;
+
+                        if (robot.health <= 0) {
+                            robots.splice(rIndex, 1);
+                            robotsDefeated++;
+                            score += 50;
+                            createParticles(robot.x, robot.y - 25, '#00ff00', 15);
+                        }
+                    }
+                });
+            }
+
+            // Punch attack hits robots
+            if (keys['e'] && ninja.isAttacking) {
+                robots.forEach((robot, rIndex) => {
+                    const distance = Math.abs(robot.x - ninja.x);
+                    if (distance < 50 && Math.abs(robot.y - ninja.y) < 80) {
+                        robot.health -= 0.3;
+                        createParticles(robot.x, robot.y - 25, '#ff8800', 2);
+                        score += 1;
+
+                        if (robot.health <= 0) {
+                            robots.splice(rIndex, 1);
+                            robotsDefeated++;
+                            score += 50;
+                            createParticles(robot.x, robot.y - 25, '#00ff00', 15);
+                        }
+                    }
+                });
+            }
+        }
+
+        // Game loop
+        function gameLoop() {
+            frameCount++;
+
+            if (gameState === 'intro') {
+                drawIntro();
+            } else if (gameState === 'playing') {
+                drawBackground();
+
+                // Update
+                updateNinja();
+                robots.forEach(r => r.update());
+                updateProjectiles();
+                updateMagicBlasts();
+                updateParticles();
+                checkCollisions();
+
+                // Draw
+                drawNinja();
+                robots.forEach(r => r.draw());
+                projectiles.forEach(p => p.draw());
+                magicBlasts.forEach(m => m.draw());
+                drawParticles();
+
+                // HUD
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 24px Arial';
+                ctx.textAlign = 'left';
+                ctx.fillText(`Level: ${currentLevel + 1} - ${levels[currentLevel].name}`, 10, 30);
+                ctx.fillText(`Score: ${score}`, 10, 60);
+                ctx.fillText(`Robots: ${robots.length}`, 10, 90);
+
+                // Check level complete
+                if (robots.length === 0) {
+                    gameState = 'levelComplete';
+                }
+
+                // Check game over
+                if (ninja.health <= 0) {
+                    gameState = 'gameOver';
+                }
+            } else if (gameState === 'levelComplete') {
+                drawLevelComplete();
+            } else if (gameState === 'gameOver') {
+                drawGameOver();
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Keyboard input
+        document.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+
+            if (gameState === 'intro' && e.code === 'Space') {
+                gameState = 'playing';
+                currentLevel = 0;
+                score = 0;
+                robotsDefeated = 0;
+                ninja.health = ninja.maxHealth;
+                spawnRobots();
+            } else if (gameState === 'levelComplete' && e.code === 'Space') {
+                if (currentLevel < levels.length - 1) {
+                    currentLevel++;
+                    ninja.health = ninja.maxHealth;
+                    ninja.x = 100;
+                    gameState = 'playing';
+                    spawnRobots();
+                }
+            } else if (gameState === 'gameOver' && e.code === 'Space') {
+                gameState = 'intro';
+                currentLevel = 0;
+                score = 0;
+                robotsDefeated = 0;
+                ninja.health = ninja.maxHealth;
+                ninja.x = 100;
+                ninja.y = canvas.height - 100;
+                ninja.velocityX = 0;
+                ninja.velocityY = 0;
+                ninja.isAttacking = false;
+                ninja.attackCooldown = 0;
+                robots = [];
+                projectiles = [];
+                magicBlasts = [];
+                particles = [];
+            } else if (gameState === 'playing') {
+                // Jump
+                if (e.code === 'Space' && ninja.isOnGround) {
+                    ninja.velocityY = ninja.jumpPower;
+                }
+
+                // Ninja star (Q)
+                if (e.key === 'q' && ninja.attackCooldown === 0) {
+                    projectiles.push(new Projectile(ninja.x, ninja.y - 40, ninja.direction));
+                    ninja.attackCooldown = 20;
+                }
+
+                // Sword (W)
+                if (e.key === 'w' && ninja.attackCooldown === 0) {
+                    ninja.isAttacking = true;
+                    ninja.attackCooldown = 30;
+                    setTimeout(() => { ninja.isAttacking = false; }, 300);
+                }
+
+                // Punch (E)
+                if (e.key === 'e' && ninja.attackCooldown === 0) {
+                    ninja.isAttacking = true;
+                    ninja.attackCooldown = 15;
+                    setTimeout(() => { ninja.isAttacking = false; }, 200);
+                }
+
+                // Magic (R)
+                if (e.key === 'r' && ninja.attackCooldown === 0) {
+                    magicBlasts.push(new MagicBlast(ninja.x, ninja.y - 40, ninja.direction));
+                    ninja.attackCooldown = 60;
+                }
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+
+        // Start game
+        gameLoop();
+    </script>
+</body>
+</html>

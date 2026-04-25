@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brain Test Challenge</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Arial', sans-serif;
+        }
+        #gameContainer {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            text-align: center;
+            max-width: 600px;
+            width: 90%;
+        }
+        h1 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 36px;
+        }
+        #ui {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f0f0f0;
+            border-radius: 10px;
+        }
+        .stat {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+        #challenge {
+            min-height: 300px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .question {
+            font-size: 24px;
+            margin-bottom: 30px;
+            color: #333;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            margin: 5px;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+        .grid {
+            display: grid;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .grid-item {
+            width: 80px;
+            height: 80px;
+            background: #e0e0e0;
+            border: 2px solid #ccc;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .grid-item:hover {
+            transform: scale(1.05);
+        }
+        .grid-item.active {
+            background: #667eea;
+        }
+        input {
+            font-size: 24px;
+            padding: 10px;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            text-align: center;
+            width: 150px;
+        }
+        #result {
+            font-size: 28px;
+            font-weight: bold;
+            margin-top: 20px;
+            min-height: 40px;
+        }
+        .correct {
+            color: #00c853;
+        }
+        .incorrect {
+            color: #ff1744;
+        }
+        #gameOver {
+            display: none;
+        }
+        .author {
+            margin-top: 20px;
+            color: #999;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <h1>Brain Test Challenge</h1>
+        <div id="ui">
+            <div class="stat">Score: <span id="score">0</span></div>
+            <div class="stat">Challenge: <span id="challengeNum">1</span>/10</div>
+            <div class="stat">Time: <span id="timer">0</span>s</div>
+        </div>
+        <div id="challenge"></div>
+        <div id="result"></div>
+        <div id="gameOver">
+            <h2>Game Complete!</h2>
+            <p style="font-size: 24px; margin: 20px 0;">Final Score: <span id="finalScore">0</span>/10</p>
+            <p style="font-size: 18px; margin: 10px 0;">Time: <span id="finalTime">0</span>s</p>
+            <button onclick="location.reload()">Play Again</button>
+        </div>
+        <div class="author">by camilla f</div>
+    </div>
+    <script src="game.js"></script>
+</body>
+</html>

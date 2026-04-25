@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Build a Queen!</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#110022; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; font-family:Arial,sans-serif; overflow:hidden; }
+h1 { color:#FFD700; font-size:28px; margin-bottom:6px; text-shadow:0 0 15px #FFD700; }
+canvas { border:4px solid #FFD700; border-radius:14px; display:block; box-shadow:0 0 30px #FFD70066; }
+#tip { color:#ccc; font-size:13px; margin-top:5px; }
+</style>
+</head>
+<body>
+<h1>&#128081; Build a Queen! &#128081;</h1>
+<canvas id="c" width="420" height="600"></canvas>
+<div id="tip">LEFT / RIGHT arrows to move &bull; Collect good things to BUILD the queen! &bull; Dodge the bad stuff!</div>
+<script>
+var c=document.getElementById('c'), ctx=c.getContext('2d');
+var W=420, H=600;
+var VP={x:W/2, y:160};
+var GROUND=H-50;
+
+// queen outfit - what she's built up so far
+var outfit = {
+  crown:   null,   // null, 'pink', 'gold', 'rainbow'
+  dress:   null,   // null, 'pink', 'purple', 'gold'
+  wand:    null,   // null, 'star', 'heart', 'rainbow'
+  necklace:null,   // null, 'gems', 'hearts', 'flowers'
+  shoes:   null,   // null, 'pink', 'gold'
+  dirt:    0,      // 0-3
+};
+
+// items that come toward player
+// type: 'crown_pink','crown_gold','dress_pink','dress_purple','wand_star',
+//       'necklace_gems','shoes_gold', 'poop','mud','spider'
+var GOOD_ITEMS = [
+  {type:'crown_pink',   emoji:'👑', label:'Pink Crown',    color:'#FF88FF'},
+  {type:'crown_gold',   emoji:'👑', label:'Gold Crown',    color:'#FFD700'},
+  {type:'dress_pink',   emoji:'👗', label:'Pink Dress',    color:'#FF88CC'},
+  {type:'dress_purple', emoji:'👗', label:'Purple Dress',  color:'#BB66FF'},
+  {type:'wand_star',    emoji:'🪄', label:'Star Wand',     color:'#FFFF00'},
+  {type:'necklace_gems',emoji:'💎', label:'Gem Necklace',  color:'#00FFFF'},
+  {type:'shoes_gold',   emoji:'👠', label:'Gold Shoes',    color:'#FFD700'},
+  {type:'flower',       emoji:'🌸', label:'Flowers',       color:'#FF88AA'},
+  {type:'gem',          emoji:'💎', label:'Gem',           color:'#88FFFF'},
+  {type:'star',         emoji:'⭐', label:'Star',          color:'#FFD700'},
+];
+var BAD_ITEMS = [
+  {type:'poop',  emoji:'💩', color:'#8B4513'},
+  {type:'mud',   emoji:'🟫', color:'#8B4513'},
+  {type:'spider',emoji:'🕷️', color:'#333'},
+  {type:'snake', emoji:'🐍', color:'#336633'},
+];
+
+var gs='start'; // start, play, princeScene, win, dead
+var score=0, dist=0, WIN_DIST=1800;
+var qx=0, qxSmooth=0, invTimer=0;
+var objs=[], parts=[], floatTexts=[];
+var spawnTimer=0, spawnRate=50, t=0;
+var laneX=[-1,0,1];
+
+// lane positions on screen at queen level
+function laneScreenX(lane){
+  return VP.x + lane*(W*0.28);
+}
+
+// Keys
+var keys={};
+document.addEventListener('keydown',function(e){
+  if(!keys[e.code]){
+    keys[e.code]=true;
+    if(gs==='play'){
+      if(e.code==='ArrowLeft'||e.code==='KeyA')  qx=Math.max(-1,qx-1);
+      if(e.code==='ArrowRight'||e.code==='KeyD') qx=Math.min(1,qx+1);
+    }
+    if((gs==='start'||gs==='win'||gs==='dead')&&e.code==='Space') startGame();
+  }
+  e.preventDefault();
+});
+document.addEventListener('keyup',function(e){keys[e.code]=false;});
+
+function startGame(){
+  gs='play'; score=0; dist=0; qx=0; qxSmooth=0; invTimer=0;
+  objs=[]; parts=[]; floatTexts=[]; spawnTimer=0; spawnRate=50; t=0;
+  outfit={crown:null,dress:null,wand:null,necklace:null,shoes:null,dirt:0};
+}
+
+function spawnObj(){
+  var lane=[-1,0,1][Math.floor(Math.random()*3)];
+  var isBad = Math.random()<0.35;
+  var def;
+  if(isBad){
+    def=BAD_ITEMS[Math.floor(Math.random()*BAD_ITEMS.length)];
+  } else {
+    def=GOOD_ITEMS[Math.floor(Math.random()*GOOD_ITEMS.length)];
+  }
+  objs.push({lane:lane, z:0, type:def.type, emoji:def.emoji, color:def.color, label:def.label||'', bad:isBad, alive:true});
+}
+
+function applyItem(o){
+  var t2=o.type;
+  if(t2==='crown_pink')    outfit.crown='pink';
+  else if(t2==='crown_gold') outfit.crown='gold';
+  else if(t2==='dress_pink') outfit.dress='pink';
+  else if(t2==='dress_purple') outfit.dress='purple';
+  else if(t2==='wand_star')  outfit.wand='star';
+  else if(t2==='necklace_gems') outfit.necklace='gems';
+  else if(t2==='shoes_gold') outfit.shoes='gold';
+  // star/gem/flower just give points
+  score+=15;
+}
+
+function applyBad(){
+  outfit.dirt=Math.min(outfit.dirt+1,3);
+  if(outfit.crown) outfit.crown=null;
+  if(outfit.necklace) outfit.necklace=null;
+  score=Math.max(0,score-5);
+}
+
+function countOutfit(){
+  var n=0;
+  if(outfit.crown) n++;
+  if(outfit.dress) n++;
+  if(outfit.wand)  n++;
+  if(outfit.necklace) n++;
+  if(outfit.shoes) n++;
+  return n;
+}
+
+// ── UPDATE ────────────────────────────────────────────────────────────────────
+function update(){
+  if(gs!=='play') return;
+  t++;
+  dist+=2.5;
+  qxSmooth+=(qx-qxSmooth)*0.2;
+  if(invTimer>0) invTimer--;
+
+  if(dist>=WIN_DIST){ gs='princeScene'; princeDist=0; return; }
+
+  // spawn
+  spawnTimer--;
+  if(spawnTimer<=0){
+    spawnObj();
+    spawnRate=Math.max(25,50-dist/60);
+    spawnTimer=spawnRate + Math.random()*15;
+  }
+
+  var speed=0.022+dist/80000;
+  for(var i=objs.length-1;i>=0;i--){
+    var o=objs[i];
+    o.z+=speed;
+    if(o.z>0.9 && o.alive && o.lane===qx){
+      o.alive=false;
+      var sx=laneScreenX(o.lane);
+      if(!o.bad){
+        applyItem(o);
+        addParticles(sx,GROUND-80,'sparkle',o.color);
+        floatTexts.push({x:sx,y:GROUND-100,text:o.label||'+15',color:o.color,life:1});
+      } else if(invTimer===0){
+        applyBad();
+        invTimer=100;
+        addParticles(sx,GROUND-80,'poop',null);
+        floatTexts.push({x:sx,y:GROUND-100,text:'Oh no!',color:'#ff4400',life:1});
+        if(outfit.dirt>=3) gs='dead';
+      }
+    }
+    if(o.z>1.1) objs.splice(i,1);
+  }
+
+  // particles
+  for(var i=parts.length-1;i>=0;i--){
+    var p=parts[i];
+    p.x+=p.vx; p.y+=p.vy; p.vy+=0.12; p.life-=0.02;
+    if(p.life<=0) parts.splice(i,1);
+  }
+  for(var i=floatTexts.length-1;i>=0;i--){
+    var f=floatTexts[i];
+    f.y-=1.5; f.life-=0.025;
+    if(f.life<=0) floatTexts.splice(i,1);
+  }
+}
+
+var princeDist=0;
+function updatePrinceScene(){
+  t++;
+  princeDist+=3;
+  for(var i=parts.length-1;i>=0;i--){
+    var p=parts[i];
+    p.x+=p.vx; p.y+=p.vy; p.vy+=0.1; p.life-=0.018;
+    if(p.life<=0) parts.splice(i,1);
+  }
+  if(princeDist>120 && parts.length<5){
+    for(var i=0;i<6;i++) addParticles(W/2+(Math.random()-0.5)*200,H/2+(Math.random()-0.5)*150,'sparkle','#FFD700');
+  }
+  if(princeDist>300){ gs='win'; }
+}
+
+function addParticles(x,y,kind,col){
+  var colors=kind==='poop'?['#8B4513','#664400','#5a3000']:
+             [col||'#FFD700','#fff','#FF88CC','#88ffcc'];
+  for(var i=0;i<10;i++){
+    parts.push({x:x,y:y,vx:(Math.random()-0.5)*7,vy:-(1+Math.random()*5),
+                life:1,color:colors[Math.floor(Math.random()*colors.length)],size:4+Math.random()*7});
+  }
+}
+
+// ── DRAW ──────────────────────────────────────────────────────────────────────
+function drawBg(){
+  // sky
+  var sk=ctx.createLinearGradient(0,0,0,VP.y+80);
+  sk.addColorStop(0,'#ff99cc'); sk.addColorStop(0.5,'#ffccee'); sk.addColorStop(1,'#ffe0f0');
+  ctx.fillStyle=sk; ctx.fillRect(0,0,W,VP.y+80);
+
+  // sun
+  ctx.fillStyle='#FFE030';
+  ctx.beginPath(); ctx.arc(W-70,55,35,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='rgba(255,220,50,0.3)';
+  ctx.beginPath(); ctx.arc(W-70,55,50,0,Math.PI*2); ctx.fill();
+
+  // clouds
+  ctx.fillStyle='rgba(255,255,255,0.9)';
+  var cs=[[60,50,40],[180,35,30],[300,55,35]];
+  cs.forEach(function(cl){
+    ctx.beginPath(); ctx.arc(cl[0],cl[1],cl[2],0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cl[0]+cl[2]*0.7,cl[1]+8,cl[2]*0.65,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cl[0]-cl[2]*0.6,cl[1]+10,cl[2]*0.55,0,Math.PI*2); ctx.fill();
+  });
+
+  // grass
+  ctx.fillStyle='#5cb85c'; ctx.fillRect(0,VP.y+70,W,H-(VP.y+70));
+  ctx.fillStyle='#4a9a4a'; ctx.fillRect(0,VP.y+70,W,12);
+
+  // road (perspective)
+  ctx.fillStyle='#e8d090';
+  ctx.beginPath();
+  ctx.moveTo(VP.x-35,VP.y); ctx.lineTo(VP.x+35,VP.y);
+  ctx.lineTo(VP.x+W*0.42,GROUND+20); ctx.lineTo(VP.x-W*0.42,GROUND+20);
+  ctx.closePath(); ctx.fill();
+  // road stripes
+  ctx.strokeStyle='rgba(255,255,255,0.7)'; ctx.lineWidth=2; ctx.setLineDash([16,12]);
+  ctx.beginPath(); ctx.moveTo(VP.x,VP.y); ctx.lineTo(VP.x,GROUND); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.strokeStyle='#fff'; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(VP.x-35,VP.y); ctx.lineTo(VP.x-W*0.42,GROUND+20); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(VP.x+35,VP.y); ctx.lineTo(VP.x+W*0.42,GROUND+20); ctx.stroke();
+
+  // scrolling trees on sides
+  var treeSpacing=130;
+  for(var i=0;i<6;i++){
+    var tProgress=((i*treeSpacing - (t*2.5)%treeSpacing + treeSpacing*5) % (treeSpacing*5));
+    var tz=tProgress/(treeSpacing*5);
+    if(tz<0.05) continue;
+    var ty2=VP.y+(GROUND-VP.y)*tz;
+    var ts=0.15+tz*0.85;
+    // left tree
+    var tx1=VP.x-(35+W*0.37*tz)-30*ts;
+    ctx.fillStyle='#3a7a3a';
+    ctx.beginPath(); ctx.arc(tx1,ty2-40*ts,28*ts,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(tx1-10*ts,ty2-20*ts,22*ts,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#8B5E3C';
+    ctx.fillRect(tx1-6*ts,ty2-8*ts,12*ts,30*ts);
+    // flowers at base
+    ctx.font=(12*ts)+'px serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('🌸',tx1,ty2+22*ts);
+    // right tree
+    var tx2=VP.x+(35+W*0.37*tz)+30*ts;
+    ctx.fillStyle='#3a7a3a';
+    ctx.beginPath(); ctx.arc(tx2,ty2-40*ts,28*ts,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(tx2+10*ts,ty2-20*ts,22*ts,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#8B5E3C';
+    ctx.fillRect(tx2-6*ts,ty2-8*ts,12*ts,30*ts);
+    ctx.fillText('🌸',tx2,ty2+22*ts);
+  }
+
+  // castle in distance
+  if(gs==='play'){
+    var cf=Math.min(1,dist/(WIN_DIST*0.7));
+    if(cf>0.3){
+      var cs2=(cf-0.3)/0.7;
+      ctx.save(); ctx.globalAlpha=Math.min(1,cs2*2);
+      ctx.translate(VP.x,VP.y+5); ctx.scale(0.2+cs2*1.5,0.2+cs2*1.5);
+      drawCastle(0,0,0.3+cs2*0.7);
+      ctx.restore();
+    }
+  }
+}
+
+function drawCastle(x,y,sc2){
+  ctx.fillStyle='#f0e0ff';
+  ctx.fillRect(x-50,y-80,100,85);
+  ctx.fillStyle='#e0c8f8';
+  ctx.fillRect(x-70,y-110,35,120); ctx.fillRect(x+35,y-110,35,120);
+  ctx.fillStyle='#f0e0ff';
+  [-70,-55,-40,35,50,65,-12,-3,3,12].forEach(function(bx){
+    ctx.fillRect(x+bx,y-123,10,16);
+  });
+  ctx.fillStyle='#9060c0';
+  ctx.fillRect(x-16,y-40,32,46);
+  ctx.beginPath(); ctx.arc(x,y-40,16,Math.PI,0); ctx.fill();
+  // flags
+  ctx.fillStyle='#ff44aa';
+  ctx.beginPath(); ctx.moveTo(x-52,y-125); ctx.lineTo(x-52,y-108);
+  ctx.lineTo(x-35,y-116); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(x+52,y-125); ctx.lineTo(x+52,y-108);
+  ctx.lineTo(x+35,y-116); ctx.closePath(); ctx.fill();
+}
+
+function drawObj(o){
+  if(!o.alive) return;
+  var progress=o.z;
+  var sy=VP.y+(GROUND-VP.y)*progress;
+  var roadW=(70+W*0.84*progress);
+  var sx=VP.x+o.lane*(roadW/2)*0.85;
+  var sc=0.2+progress*1.1;
+  if(sc<0.15) return;
+  ctx.save();
+  ctx.globalAlpha=Math.min(1,progress*4);
+  // shadow
+  ctx.fillStyle='rgba(0,0,0,0.15)';
+  ctx.beginPath(); ctx.ellipse(sx,sy+2,14*sc,5*sc,0,0,Math.PI*2); ctx.fill();
+  // glow for good items
+  if(!o.bad){
+    ctx.shadowColor=o.color; ctx.shadowBlur=12*sc;
+  }
+  ctx.font=(28*sc+4)+'px serif';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(o.emoji, sx, sy-10*sc);
+  ctx.shadowBlur=0;
+  // label for outfit items
+  if(!o.bad && o.label && sc>0.6){
+    ctx.fillStyle=o.color; ctx.font='bold '+(11*sc)+'px Arial';
+    ctx.fillText(o.label,sx,sy-26*sc);
+  }
+  ctx.restore();
+}
+
+function drawQueen(){
+  var qsx=VP.x+qxSmooth*(W*0.28);
+  var qy=GROUND-8;
+  var bob=Math.sin(t*0.14)*4;
+
+  if(invTimer>0 && Math.floor(invTimer/5)%2===1) ctx.globalAlpha=0.3;
+
+  // shadow
+  ctx.fillStyle='rgba(0,0,0,0.18)';
+  ctx.beginPath(); ctx.ellipse(qsx,qy+14,32,8,0,0,Math.PI*2); ctx.fill();
+
+  // SHOES
+  var shoeCol=outfit.shoes?'#FFD700':'#AA3366';
+  var legSwing=Math.sin(t*0.14)*14+bob*0.5;
+  ctx.strokeStyle=outfit.dirt>0?'#c8a050':'#FFD8B1'; ctx.lineWidth=9; ctx.lineCap='round';
+  // left leg
+  ctx.save(); ctx.translate(qsx-14,qy-2); ctx.rotate(-legSwing*Math.PI/180);
+  ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,26); ctx.stroke();
+  ctx.fillStyle=shoeCol; ctx.beginPath(); ctx.ellipse(0,26,10,6,0,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+  // right leg
+  ctx.save(); ctx.translate(qsx+14,qy-2); ctx.rotate(legSwing*Math.PI/180);
+  ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,26); ctx.stroke();
+  ctx.fillStyle=shoeCol; ctx.beginPath(); ctx.ellipse(0,26,10,6,0,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  // DRESS
+  var dressCol=outfit.dress==='purple'?'#BB66FF':outfit.dress==='pink'?'#FF66CC':'#dddddd';
+  ctx.fillStyle=dressCol;
+  ctx.beginPath();
+  ctx.moveTo(qsx,qy-62+bob);
+  ctx.bezierCurveTo(qsx-32,qy-46+bob, qsx-52,qy-12, qsx-44,qy+6);
+  ctx.lineTo(qsx+44,qy+6);
+  ctx.bezierCurveTo(qsx+52,qy-12, qsx+32,qy-46+bob, qsx,qy-62+bob);
+  ctx.closePath(); ctx.fill();
+  // dress shimmer if has dress
+  if(outfit.dress){
+    ctx.strokeStyle='rgba(255,255,255,0.4)'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(qsx-15,qy-45+bob); ctx.lineTo(qsx-10,qy+2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(qsx+5,qy-50+bob); ctx.lineTo(qsx+8,qy+2); ctx.stroke();
+  }
+  // dress is grey/dull if no dress
+  if(!outfit.dress){
+    ctx.strokeStyle='#aaa'; ctx.lineWidth=2;
+    ctx.beginPath();
+    ctx.moveTo(qsx,qy-62+bob);
+    ctx.bezierCurveTo(qsx-32,qy-46+bob,qsx-52,qy-12,qsx-44,qy+6);
+    ctx.lineTo(qsx+44,qy+6);
+    ctx.bezierCurveTo(qsx+52,qy-12,qsx+32,qy-46+bob,qsx,qy-62+bob);
+    ctx.closePath(); ctx.stroke();
+  }
+
+  // POOP SPLATS
+  if(outfit.dirt>=1){
+    ctx.fillStyle='#5a3000';
+    ctx.beginPath(); ctx.ellipse(qsx-8,qy-22+bob,11,8,0.3,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(qsx+14,qy-8+bob,9,6,-0.2,0,Math.PI*2); ctx.fill();
+  }
+  if(outfit.dirt>=2){
+    ctx.beginPath(); ctx.ellipse(qsx+4,qy-36+bob,10,7,0.5,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(qsx-18,qy-5+bob,8,5,0,0,Math.PI*2); ctx.fill();
+  }
+
+  // BODY BACK
+  ctx.fillStyle=outfit.dirt>0?'#c8a050':'#FFD8B1';
+  ctx.fillRect(qsx-14,qy-92+bob,28,32);
+
+  // NECKLACE on back of neck
+  if(outfit.necklace){
+    ctx.fillStyle='#00FFFF';
+    for(var i=0;i<5;i++){
+      var nx=qsx-10+i*5, ny=qy-78+bob;
+      ctx.beginPath(); ctx.arc(nx,ny,3,0,Math.PI*2); ctx.fill();
+    }
+  }
+
+  // ARMS
+  ctx.strokeStyle=outfit.dirt>0?'#c8a050':'#FFD8B1'; ctx.lineWidth=10; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(qsx-14,qy-82+bob); ctx.lineTo(qsx-38,qy-62+bob); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(qsx+14,qy-82+bob); ctx.lineTo(qsx+38,qy-62+bob); ctx.stroke();
+
+  // WAND
+  if(outfit.wand){
+    ctx.strokeStyle='#FFD700'; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.moveTo(qsx+38,qy-62+bob); ctx.lineTo(qsx+52,qy-46+bob); ctx.stroke();
+    ctx.fillStyle='#FF88FF';
+    ctx.beginPath(); ctx.arc(qsx+53,qy-45+bob,7,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#FFD700';
+    ctx.beginPath(); ctx.arc(qsx+53,qy-45+bob,4,0,Math.PI*2); ctx.fill();
+    // sparkle from wand
+    if(t%8<4){
+      ctx.fillStyle='rgba(255,255,100,0.8)';
+      ctx.beginPath(); ctx.arc(qsx+56,qy-50+bob,3,0,Math.PI*2); ctx.fill();
+    }
+  } else {
+    ctx.strokeStyle='#aaa'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(qsx+38,qy-62+bob); ctx.lineTo(qsx+48,qy-52+bob); ctx.stroke();
+  }
+
+  // HAIR (back of head - flowing)
+  ctx.fillStyle=outfit.dirt>0?'#aa8820':'#FFDD44';
+  ctx.beginPath(); ctx.arc(qsx,qy-108+bob,18,0,Math.PI*2); ctx.fill();
+  // flowing hair strands
+  ctx.beginPath(); ctx.ellipse(qsx-20,qy-96+bob,9,16,-0.25,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(qsx+20,qy-96+bob,9,16,0.25,0,Math.PI*2); ctx.fill();
+  // middle strand going down
+  ctx.beginPath(); ctx.ellipse(qsx,qy-88+bob,7,18,0,0,Math.PI*2); ctx.fill();
+
+  // CROWN
+  if(outfit.crown){
+    var crCol=outfit.crown==='gold'?'#FFD700':'#FF88FF';
+    ctx.fillStyle=crCol;
+    ctx.beginPath();
+    var cy2=qy-128+bob;
+    ctx.moveTo(qsx-16,cy2+8); ctx.lineTo(qsx-16,cy2+12);
+    ctx.lineTo(qsx-7,cy2+5); ctx.lineTo(qsx,cy2+12);
+    ctx.lineTo(qsx+7,cy2+5); ctx.lineTo(qsx+16,cy2+12);
+    ctx.lineTo(qsx+16,cy2+8); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle=outfit.crown==='gold'?'#FF8800':'#FF44AA'; ctx.lineWidth=1.5; ctx.stroke();
+    ctx.fillStyle='#fff'; ctx.font='9px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('💎',qsx,cy2+7);
+  } else {
+    // no crown - just a headband
+    ctx.strokeStyle='#ccc'; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.arc(qsx,qy-108+bob,19,Math.PI+0.4,Math.PI*2-0.4); ctx.stroke();
+  }
+
+  // stink lines if dirty
+  if(outfit.dirt>0){
+    ctx.strokeStyle='rgba(100,80,0,0.4)'; ctx.lineWidth=1.5;
+    [[-10,-148],[1,-153],[13,-145]].forEach(function(s){
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(qsx+s[0],qy+s[1]+bob);
+      ctx.quadraticCurveTo(qsx+s[0]+5,qy+s[1]-8+bob, qsx+s[0]+2,qy+s[1]-18+bob);
+      ctx.stroke(); ctx.restore();
+    });
+  }
+
+  ctx.globalAlpha=1;
+}
+
+function drawOutfitBar(){
+  // show outfit progress at top
+  ctx.fillStyle='rgba(0,0,0,0.45)';
+  ctx.fillRect(0,0,W,42);
+  // items
+  var items2=[
+    {key:'crown',   emoji:outfit.crown  ?'👑':'⬜', label:'Crown'},
+    {key:'dress',   emoji:outfit.dress  ?'👗':'⬜', label:'Dress'},
+    {key:'wand',    emoji:outfit.wand   ?'🪄':'⬜', label:'Wand'},
+    {key:'necklace',emoji:outfit.necklace?'💎':'⬜', label:'Necklace'},
+    {key:'shoes',   emoji:outfit.shoes  ?'👠':'⬜', label:'Shoes'},
+  ];
+  items2.forEach(function(it,i){
+    var ix=20+i*78;
+    ctx.fillStyle=outfit[it.key]?'rgba(255,215,0,0.2)':'rgba(255,255,255,0.05)';
+    ctx.fillRect(ix-2,2,68,38);
+    ctx.font='20px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(it.emoji,ix+20,14);
+    ctx.fillStyle=outfit[it.key]?'#FFD700':'#888';
+    ctx.font='bold 9px Arial'; ctx.textAlign='center';
+    ctx.fillText(it.label,ix+20,32);
+  });
+  // score
+  ctx.fillStyle='#FFD700'; ctx.font='bold 14px Arial'; ctx.textAlign='right';
+  ctx.fillText('Score: '+score, W-10, 25);
+  // progress bar
+  ctx.fillStyle='rgba(255,255,255,0.2)'; ctx.fillRect(0,40,W,4);
+  ctx.fillStyle='#FFD700'; ctx.fillRect(0,40,W*(dist/WIN_DIST),4);
+}
+
+function drawParticles(){
+  parts.forEach(function(p){
+    ctx.save(); ctx.globalAlpha=p.life;
+    ctx.fillStyle=p.color;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  });
+}
+
+function drawFloatTexts(){
+  floatTexts.forEach(function(f){
+    ctx.save(); ctx.globalAlpha=f.life;
+    ctx.fillStyle=f.color; ctx.font='bold 18px Arial'; ctx.textAlign='center';
+    ctx.fillText(f.text,f.x,f.y);
+    ctx.restore();
+  });
+}
+
+function drawPrinceScene(){
+  drawBg();
+  // prince walks toward queen in center of road
+  var pz=Math.min(1,0.3+princeDist/200);
+  var py=VP.y+(GROUND-VP.y)*pz;
+  var ps=0.3+pz*1.2;
+  var px2=VP.x;
+
+  ctx.save();
+  ctx.translate(px2,py);
+
+  // shadow
+  ctx.fillStyle='rgba(0,0,0,0.18)';
+  ctx.beginPath(); ctx.ellipse(0,10,22*ps,7*ps,0,0,Math.PI*2); ctx.fill();
+
+  // legs
+  var lg=Math.sin(t*0.14)*12;
+  ctx.strokeStyle='#4a90d9'; ctx.lineWidth=9*ps; ctx.lineCap='round';
+  ctx.save(); ctx.translate(-11*ps,0); ctx.rotate(-lg*Math.PI/180);
+  ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,24*ps); ctx.stroke();
+  ctx.fillStyle='#2244aa'; ctx.beginPath(); ctx.ellipse(0,24*ps,8*ps,5*ps,0,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+  ctx.save(); ctx.translate(11*ps,0); ctx.rotate(lg*Math.PI/180);
+  ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,24*ps); ctx.stroke();
+  ctx.fillStyle='#2244aa'; ctx.beginPath(); ctx.ellipse(0,24*ps,8*ps,5*ps,0,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  // body
+  ctx.fillStyle='#4a90d9'; ctx.fillRect(-14*ps,-70*ps,28*ps,28*ps);
+  // cape
+  ctx.fillStyle='#cc2233';
+  ctx.beginPath(); ctx.moveTo(14*ps,-68*ps); ctx.lineTo(28*ps,-50*ps); ctx.lineTo(14*ps,-46*ps); ctx.closePath(); ctx.fill();
+  // arms
+  ctx.strokeStyle='#FFD8B1'; ctx.lineWidth=8*ps; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(-14*ps,-60*ps); ctx.lineTo(-30*ps,-44*ps); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(14*ps,-60*ps); ctx.lineTo(30*ps,-44*ps); ctx.stroke();
+  ctx.font=(18*ps)+'px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('🌹',36*ps,-40*ps);
+  // head
+  ctx.fillStyle='#FFD8B1';
+  ctx.beginPath(); ctx.arc(0,-86*ps,15*ps,0,Math.PI*2); ctx.fill();
+  // face
+  ctx.strokeStyle='#aa3322'; ctx.lineWidth=1.5*ps;
+  ctx.beginPath(); ctx.arc(0,-82*ps,6*ps,0.3,Math.PI-0.3); ctx.stroke();
+  ctx.fillStyle='#4a3300';
+  ctx.beginPath(); ctx.arc(-5*ps,-89*ps,3*ps,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(5*ps,-89*ps,3*ps,0,Math.PI*2); ctx.fill();
+  // hair
+  ctx.fillStyle='#553300';
+  ctx.beginPath(); ctx.ellipse(0,-96*ps,15*ps,9*ps,0,Math.PI,Math.PI*2); ctx.fill();
+  // crown
+  ctx.fillStyle='#FFD700';
+  ctx.beginPath();
+  ctx.moveTo(-11*ps,-106*ps); ctx.lineTo(-11*ps,-102*ps); ctx.lineTo(-5*ps,-109*ps);
+  ctx.lineTo(0,-102*ps); ctx.lineTo(5*ps,-109*ps); ctx.lineTo(11*ps,-102*ps);
+  ctx.lineTo(11*ps,-106*ps); ctx.closePath(); ctx.fill();
+
+  ctx.restore();
+
+  // queen stays at bottom
+  drawQueen();
+  drawParticles();
+
+  // speech bubble
+  if(princeDist>60){
+    var outfitCount=countOutfit();
+    ctx.fillStyle='white';
+    ctx.fillRect(W/2-90,H/2-130,180,50);
+    ctx.fillStyle='#333'; ctx.font='13px Arial'; ctx.textAlign='center';
+    var msg=outfitCount>=4?'You look AMAZING! 💖':
+            outfitCount>=2?'You look lovely! 😊':
+            outfit.dirt>0 ?'Um... you smell... 🤢':
+            'Hello! Nice to meet you!';
+    ctx.fillText(msg,W/2,H/2-100);
+  }
+}
+
+function drawStart(){
+  drawBg();
+  ctx.fillStyle='rgba(0,0,0,0.55)'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#FFD700'; ctx.font='bold 38px Arial'; ctx.textAlign='center';
+  ctx.fillText('Build a Queen!',W/2,H/2-80);
+  ctx.fillStyle='#fff'; ctx.font='18px Arial';
+  ctx.fillText('Collect clothes to build',W/2,H/2-30);
+  ctx.fillText('your queen as she runs!',W/2,H/2+0);
+  ctx.fillText('Reach the Prince at the end!',W/2,H/2+35);
+  ctx.font='14px Arial'; ctx.fillStyle='#aaa';
+  ctx.fillText('LEFT/RIGHT to move lanes',W/2,H/2+75);
+  ctx.fillStyle='#FFD700'; ctx.font='bold 20px Arial';
+  ctx.fillText('Press SPACE to start!',W/2,H/2+115);
+  ctx.font='50px serif'; ctx.fillText('👑',W/2,H/2-140);
+}
+
+function drawWin(){
+  ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(0,0,W,H);
+  var n=countOutfit();
+  var msgs=['Oh dear... try again!','Not bad! Keep building!','Pretty good queen!','Amazing Queen!! 💖','PERFECT QUEEN!! 👑✨'];
+  ctx.fillStyle='#FFD700'; ctx.font='bold 34px Arial'; ctx.textAlign='center';
+  ctx.fillText(msgs[Math.min(n,4)],W/2,H/2-50);
+  ctx.fillStyle='#fff'; ctx.font='20px Arial';
+  ctx.fillText('Outfit: '+n+'/5 pieces',W/2,H/2+0);
+  ctx.fillText('Score: '+score,W/2,H/2+35);
+  ctx.font='16px Arial'; ctx.fillStyle='#aaa';
+  ctx.fillText('Press SPACE to play again!',W/2,H/2+75);
+}
+
+function drawDead(){
+  ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#cc3300'; ctx.font='bold 36px Arial'; ctx.textAlign='center';
+  ctx.fillText('Too much poop!! 💩',W/2,H/2-40);
+  ctx.fillStyle='#fff'; ctx.font='18px Arial';
+  ctx.fillText('The queen is too dirty to continue!',W/2,H/2+5);
+  ctx.fillText('Press SPACE to try again!',W/2,H/2+45);
+}
+
+// ── MAIN LOOP ─────────────────────────────────────────────────────────────────
+function loop(){
+  if(gs==='start'){
+    drawStart();
+  } else if(gs==='play'){
+    update();
+    ctx.clearRect(0,0,W,H);
+    drawBg();
+    var sorted=objs.slice().sort(function(a,b){return a.z-b.z;});
+    sorted.forEach(drawObj);
+    drawQueen();
+    drawParticles();
+    drawFloatTexts();
+    drawOutfitBar();
+  } else if(gs==='princeScene'){
+    updatePrinceScene();
+    ctx.clearRect(0,0,W,H);
+    drawPrinceScene();
+    drawOutfitBar();
+  } else if(gs==='win'){
+    ctx.clearRect(0,0,W,H);
+    drawBg();
+    drawWin();
+    drawParticles();
+  } else if(gs==='dead'){
+    ctx.clearRect(0,0,W,H);
+    drawBg();
+    drawDead();
+  }
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>

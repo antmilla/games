@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Mario Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(to bottom, #5c94fc, #87CEEB);
+            font-family: 'Arial', sans-serif;
+        }
+        #gameContainer {
+            text-align: center;
+        }
+        canvas {
+            border: 4px solid #000;
+            background: #5c94fc;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+        #ui {
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 15px;
+            margin-top: 10px;
+            border-radius: 10px;
+            font-size: 20px;
+            display: flex;
+            justify-content: space-around;
+        }
+        #gameOver {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            color: white;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+        }
+        #gameOver h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        #gameOver button {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        #gameOver button:hover {
+            background: #ff5252;
+        }
+        #instructions {
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="ui">
+            <div>Score: <span id="score">0</span></div>
+            <div>Coins: <span id="coins">0</span></div>
+            <div>Lives: <span id="lives">3</span></div>
+        </div>
+        <div id="instructions">
+            Arrow Keys or WASD to Move | SPACE to Jump | F to Shoot Fireballs (Fire Flower) | Hit ? blocks for power-ups!
+        </div>
+        <div id="gameOver">
+            <h1>Game Over!</h1>
+            <p>Final Score: <span id="finalScore">0</span></p>
+            <button onclick="location.reload()">Play Again</button>
+        </div>
+    </div>
+    <script src="game.js"></script>
+</body>
+</html>

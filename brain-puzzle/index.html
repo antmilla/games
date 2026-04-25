@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fox Explorer 🦊🌲</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(to bottom, #87CEEB, #98D8C8);
+            font-family: 'Comic Sans MS', cursive, sans-serif;
+        }
+
+        #gameContainer {
+            text-align: center;
+        }
+
+        canvas {
+            border: 5px solid #8B4513;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            background: #90EE90;
+        }
+
+        #info {
+            color: white;
+            font-size: 24px;
+            margin-top: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <h1 style="color: white; text-shadow: 3px 3px 6px rgba(0,0,0,0.5);">🦊 FOX EXPLORER 🌲</h1>
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="info">Use Left/Right Arrow Keys to explore! Collect berries from trees and fish from ponds!</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Fox
+        const fox = {
+            x: 400,
+            y: 470, // On the ground!
+            width: 40,
+            height: 30,
+            speed: 4,
+            direction: 1 // 1 = right, -1 = left
+        };
+
+        // Score
+        let berries = 0;
+        let fish = 0;
+
+        // Collectibles
+        let items = [];
+
+        // Keys
+        const keys = {};
+
+        // Tree positions (for berries) - only 4 trees now!
+        const treePositions = [];
+        for (let i = 0; i < 4; i++) {
+            treePositions.push({
+                x: i * 200 + 100,
+                y: canvas.height - 150
+            });
+        }
+
+        // Pond positions (for fish)
+        const pondPositions = [
+            {x: 150, y: canvas.height - 60, width: 100, height: 50},
+            {x: 400, y: canvas.height - 65, width: 120, height: 55},
+            {x: 650, y: canvas.height - 60, width: 100, height: 50}
+        ];
+
+        // Initialize items
+        function initItems() {
+            items = [];
+            // Berries - spawn IN TREES!
+            for (let i = 0; i < 15; i++) {
+                const tree = treePositions[Math.floor(Math.random() * treePositions.length)];
+                items.push({
+                    type: 'berry',
+                    x: tree.x + (Math.random() - 0.5) * 40, // Random position in tree
+                    y: tree.y - 10 + (Math.random() - 0.5) * 30, // In the tree leaves
+                    collected: false
+                });
+            }
+            // Fish - spawn IN PONDS!
+            for (let i = 0; i < 10; i++) {
+                const pond = pondPositions[Math.floor(Math.random() * pondPositions.length)];
+                items.push({
+                    type: 'fish',
+                    x: pond.x + Math.random() * pond.width,
+                    y: pond.y + Math.random() * pond.height,
+                    collected: false
+                });
+            }
+        }
+
+        // Draw fox
+        function drawFox() {
+            ctx.save();
+
+            // Flip if facing left
+            if (fox.direction === -1) {
+                ctx.scale(-1, 1);
+                ctx.translate(-fox.x * 2 - fox.width, 0);
+            }
+
+            // Fox body (orange)
+            ctx.fillStyle = '#FF8C42';
+            ctx.beginPath();
+            ctx.ellipse(fox.x + fox.width / 2, fox.y + fox.height / 2, fox.width / 2, fox.height / 2, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Fox head
+            ctx.fillStyle = '#FFA07A';
+            ctx.beginPath();
+            ctx.arc(fox.x + fox.width - 5, fox.y + 10, 12, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Fox ears
+            ctx.fillStyle = '#FF8C42';
+            ctx.beginPath();
+            ctx.moveTo(fox.x + fox.width - 12, fox.y + 2);
+            ctx.lineTo(fox.x + fox.width - 8, fox.y - 8);
+            ctx.lineTo(fox.x + fox.width - 4, fox.y + 2);
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(fox.x + fox.width + 2, fox.y + 2);
+            ctx.lineTo(fox.x + fox.width + 6, fox.y - 8);
+            ctx.lineTo(fox.x + fox.width + 10, fox.y + 2);
+            ctx.fill();
+
+            // Fox eyes (two eyes!)
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(fox.x + fox.width - 2, fox.y + 8, 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(fox.x + fox.width + 3, fox.y + 8, 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Fox nose (cute pink nose!)
+            ctx.fillStyle = '#FF69B4';
+            ctx.beginPath();
+            ctx.arc(fox.x + fox.width + 6, fox.y + 12, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Fox tail (bushy)
+            ctx.fillStyle = '#FF8C42';
+            ctx.beginPath();
+            ctx.ellipse(fox.x - 8, fox.y + fox.height / 2, 12, 8, 0.3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Tail tip (white)
+            ctx.fillStyle = '#FFF';
+            ctx.beginPath();
+            ctx.arc(fox.x - 15, fox.y + fox.height / 2, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        // Draw items
+        function drawItems() {
+            items.forEach(item => {
+                if (!item.collected) {
+                    if (item.type === 'berry') {
+                        // Draw berry
+                        ctx.fillStyle = '#E74C3C';
+                        ctx.beginPath();
+                        ctx.arc(item.x, item.y, 6, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        // Berry leaf
+                        ctx.fillStyle = '#27AE60';
+                        ctx.beginPath();
+                        ctx.ellipse(item.x, item.y - 4, 3, 2, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                    } else if (item.type === 'fish') {
+                        // Draw fish
+                        ctx.fillStyle = '#3498DB';
+                        ctx.beginPath();
+                        ctx.ellipse(item.x, item.y, 10, 6, 0, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        // Fish tail
+                        ctx.fillStyle = '#2980B9';
+                        ctx.beginPath();
+                        ctx.moveTo(item.x - 10, item.y);
+                        ctx.lineTo(item.x - 16, item.y - 5);
+                        ctx.lineTo(item.x - 16, item.y + 5);
+                        ctx.fill();
+
+                        // Fish eye
+                        ctx.fillStyle = '#FFF';
+                        ctx.beginPath();
+                        ctx.arc(item.x + 6, item.y - 2, 2, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+            });
+        }
+
+        // Create background ONCE (not every frame!)
+        const bgCanvas = document.createElement('canvas');
+        bgCanvas.width = canvas.width;
+        bgCanvas.height = canvas.height;
+        const bgCtx = bgCanvas.getContext('2d');
+
+        function createBackground() {
+            // Sky
+            bgCtx.fillStyle = '#87CEEB';
+            bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+
+            // Ground
+            bgCtx.fillStyle = '#8FBC8F';
+            bgCtx.fillRect(0, bgCanvas.height - 100, bgCanvas.width, 100);
+
+            // Ponds (simplified - just blue circles)
+            bgCtx.fillStyle = '#4A90E2';
+            pondPositions.forEach(pond => {
+                bgCtx.beginPath();
+                bgCtx.arc(pond.x + pond.width/2, pond.y + pond.height/2, pond.width/2, 0, Math.PI * 2);
+                bgCtx.fill();
+            });
+
+            // Trees (simplified - just 4 trees)
+            for (let i = 0; i < 4; i++) {
+                const x = i * 200 + 100;
+                const y = bgCanvas.height - 150;
+
+                // Trunk
+                bgCtx.fillStyle = '#8B4513';
+                bgCtx.fillRect(x - 8, y, 16, 50);
+
+                // Leaves (one circle)
+                bgCtx.fillStyle = '#228B22';
+                bgCtx.beginPath();
+                bgCtx.arc(x, y - 10, 28, 0, Math.PI * 2);
+                bgCtx.fill();
+            }
+        }
+
+        // Draw background (just copy the cached canvas)
+        function drawBackground() {
+            ctx.drawImage(bgCanvas, 0, 0);
+        }
+
+        // Update fox
+        function updateFox() {
+            if (keys['ArrowLeft']) {
+                fox.x -= fox.speed;
+                fox.direction = -1;
+            }
+            if (keys['ArrowRight']) {
+                fox.x += fox.speed;
+                fox.direction = 1;
+            }
+
+            // Keep fox on the ground! (Can only move left/right)
+            fox.y = 470;
+
+            // Keep fox on screen horizontally
+            if (fox.x < 0) fox.x = 0;
+            if (fox.x > canvas.width - fox.width) fox.x = canvas.width - fox.width;
+        }
+
+        // Check collisions
+        function checkCollisions() {
+            items.forEach(item => {
+                if (!item.collected) {
+                    const dist = Math.sqrt((fox.x + fox.width / 2 - item.x) ** 2 + (fox.y + fox.height / 2 - item.y) ** 2);
+                    if (dist < 20) {
+                        item.collected = true;
+                        if (item.type === 'berry') {
+                            berries++;
+                        } else if (item.type === 'fish') {
+                            fish++;
+                        }
+                    }
+                }
+            });
+        }
+
+        // Draw HUD
+        function drawHUD() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.fillRect(10, 10, 280, 80);
+
+            ctx.fillStyle = '#FFF';
+            ctx.font = 'bold 24px Comic Sans MS';
+            ctx.textAlign = 'left';
+            ctx.fillText('🍓 Berries: ' + berries, 20, 40);
+            ctx.fillText('🐟 Fish: ' + fish, 20, 70);
+
+            // Check if won
+            if (berries === 15 && fish === 10) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.fillStyle = '#FFD700';
+                ctx.font = 'bold 56px Comic Sans MS';
+                ctx.textAlign = 'center';
+                ctx.fillText('🎉 YOU FOUND EVERYTHING! 🎉', canvas.width / 2, canvas.height / 2);
+
+                ctx.fillStyle = '#FFF';
+                ctx.font = '24px Comic Sans MS';
+                ctx.fillText('Press R to explore again!', canvas.width / 2, canvas.height / 2 + 50);
+            }
+        }
+
+        // Game loop
+        function gameLoop() {
+            drawBackground();
+            drawItems();
+            updateFox();
+            checkCollisions();
+            drawFox();
+            drawHUD();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Keyboard
+        document.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+
+            if (e.key === 'r' || e.key === 'R') {
+                if (berries === 15 && fish === 10) {
+                    berries = 0;
+                    fish = 0;
+                    fox.x = 400;
+                    fox.y = 470; // On the ground!
+                    initItems();
+                }
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+
+        // Start
+        createBackground(); // Draw background ONCE!
+        initItems();
+        gameLoop();
+    </script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "name": "fox-phaser",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest",
+    "vite": "^7.1.12"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "phaser": "^3.90.0"
+  }
+}

@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minecraft 2D Creative - By Camilla & Mattea</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: linear-gradient(to bottom, #87CEEB 0%, #E0F6FF 100%);
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+
+        #gameContainer {
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        h1 {
+            color: #654321;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            margin: 10px 0;
+            font-size: 32px;
+        }
+
+        canvas {
+            border: 5px solid #654321;
+            background: #87CEEB;
+            display: block;
+            margin: 10px auto;
+            cursor: crosshair;
+        }
+
+        #hotbar {
+            position: absolute;
+            top: 70px;
+            left: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            z-index: 1000;
+        }
+
+        .hotbar-slot {
+            width: 70px;
+            height: 70px;
+            border: 3px solid #8B4513;
+            background: #C0C0C0;
+            cursor: pointer;
+            position: relative;
+            transition: transform 0.1s;
+        }
+
+        .hotbar-slot:hover {
+            transform: scale(1.1);
+        }
+
+        .hotbar-slot.selected {
+            border-color: #FFD700;
+            border-width: 4px;
+            box-shadow: 0 0 10px #FFD700;
+        }
+
+        .block-preview {
+            width: 50px;
+            height: 50px;
+            margin: 5px;
+        }
+
+        #controls {
+            color: #654321;
+            font-size: 16px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+
+        #clearButton {
+            background: #FF4444;
+            color: white;
+            border: 3px solid #8B0000;
+            padding: 15px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 5px;
+            margin: 10px;
+            transition: transform 0.1s, background 0.1s;
+            font-family: 'Courier New', monospace;
+        }
+
+        #clearButton:hover {
+            background: #FF0000;
+            transform: scale(1.05);
+        }
+
+        #clearButton:active {
+            transform: scale(0.95);
+        }
+
+        #doorSelector {
+            position: absolute;
+            top: 70px;
+            right: 10px;
+            width: 80px;
+            height: 80px;
+            border: 4px solid #8B4513;
+            background: #C0C0C0;
+            cursor: pointer;
+            transition: transform 0.1s, border-color 0.1s;
+            z-index: 1000;
+        }
+
+        #doorSelector:hover {
+            transform: scale(1.1);
+        }
+
+        #doorSelector.selected {
+            border-color: #FFD700;
+            box-shadow: 0 0 15px #FFD700;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <h1>⛏️ MINECRAFT 2D CREATIVE ⛏️</h1>
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+        <div id="hotbar"></div>
+        <div id="doorSelector" title="Door"></div>
+
+        <button id="clearButton">🗑️ CLEAR ALL BLOCKS 🗑️</button>
+
+        <div id="controls">
+            🎮 Arrow Keys: Move | Space: Jump | Click Block: Break | Click Air: Place | 🚪 Click Door: Open/Close!
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Block size
+        const BLOCK_SIZE = 40;
+        const GRID_WIDTH = Math.floor(canvas.width / BLOCK_SIZE);
+        const GRID_HEIGHT = Math.floor(canvas.height / BLOCK_SIZE);
+
+        // Block types
+        const BLOCKS = {
+            air: { name: 'Air', color: null },
+            grass: { name: 'Grass', color: '#7CFC00', top: '#90EE90' },
+            dirt: { name: 'Dirt', color: '#8B4513' },
+            stone: { name: 'Stone', color: '#808080' },
+            wood: { name: 'Wood', color: '#DEB887' },
+            leaves: { name: 'Leaves', color: '#228B22' },
+            planks: { name: 'Planks', color: '#CD853F' },
+            cobblestone: { name: 'Cobblestone', color: '#696969' },
+            sand: { name: 'Sand', color: '#F4A460' },
+            glass: { name: 'Glass', color: '#E0FFFF', transparent: true },
+            brick: { name: 'Brick', color: '#B22222' },
+            gold: { name: 'Gold', color: '#FFD700' },
+            diamond: { name: 'Diamond', color: '#00CED1' },
+            emerald: { name: 'Emerald', color: '#50C878' },
+            redstone: { name: 'Redstone', color: '#DC143C' },
+            lapis: { name: 'Lapis', color: '#0000CD' },
+            wool_red: { name: 'Red Wool', color: '#FF0000' },
+            wool_blue: { name: 'Blue Wool', color: '#0000FF' },
+            wool_yellow: { name: 'Yellow Wool', color: '#FFFF00' },
+            wool_pink: { name: 'Pink Wool', color: '#FFC0CB' },
+            door: { name: 'Door', color: '#8B4513', isDoor: true }
+        };
+
+        // Initialize world grid
+        let world = [];
+        for (let y = 0; y < GRID_HEIGHT; y++) {
+            world[y] = [];
+            for (let x = 0; x < GRID_WIDTH; x++) {
+                if (y >= GRID_HEIGHT - 3) {
+                    // Bottom layers - dirt
+                    world[y][x] = 'dirt';
+                } else if (y === GRID_HEIGHT - 4) {
+                    // Grass layer
+                    world[y][x] = 'grass';
+                } else {
+                    // Air
+                    world[y][x] = 'air';
+                }
+            }
+        }
+
+        // Track which doors are open (closed by default)
+        let doorStates = {}; // Format: "x,y": true/false (true = open, false = closed)
+
+        // Check if door is open
+        function isDoorOpen(x, y) {
+            const key = `${x},${y}`;
+            return doorStates[key] === true;
+        }
+
+        // Toggle door open/closed
+        function toggleDoor(x, y) {
+            const key = `${x},${y}`;
+            doorStates[key] = !doorStates[key];
+        }
+
+        // Player
+        const player = {
+            x: GRID_WIDTH / 2,
+            y: GRID_HEIGHT - 6,
+            velocityY: 0,
+            width: 0.8,
+            height: 1.8,
+            onGround: false,
+            moveLeft: false,
+            moveRight: false,
+            speed: 0.15,
+            jumpPower: 0.4,
+            gravity: 0.03
+        };
+
+        // Selected block
+        let selectedBlock = 'dirt';
+
+        // Hotbar blocks
+        const hotbarBlocks = ['dirt', 'grass', 'stone', 'wood', 'planks', 'sand', 'glass', 'brick', 'gold', 'diamond', 'wool_red', 'wool_blue', 'wool_yellow', 'wool_pink'];
+
+        // Create hotbar
+        const hotbarDiv = document.getElementById('hotbar');
+        hotbarBlocks.forEach(blockType => {
+            const slot = document.createElement('div');
+            slot.className = 'hotbar-slot';
+            if (blockType === selectedBlock) slot.classList.add('selected');
+
+            const preview = document.createElement('canvas');
+            preview.className = 'block-preview';
+            preview.width = 50;
+            preview.height = 50;
+            const previewCtx = preview.getContext('2d');
+            drawBlockPreview(previewCtx, blockType, 0, 0, 50);
+
+            slot.appendChild(preview);
+            slot.addEventListener('click', () => {
+                selectedBlock = blockType;
+                document.querySelectorAll('.hotbar-slot').forEach(s => s.classList.remove('selected'));
+                document.getElementById('doorSelector').classList.remove('selected');
+                slot.classList.add('selected');
+            });
+
+            hotbarDiv.appendChild(slot);
+        });
+
+        // Create door selector in top-right
+        const doorSelectorDiv = document.getElementById('doorSelector');
+        const doorPreview = document.createElement('canvas');
+        doorPreview.width = 70;
+        doorPreview.height = 70;
+        const doorPreviewCtx = doorPreview.getContext('2d');
+        drawBlockPreview(doorPreviewCtx, 'door', 5, 5, 60);
+        doorSelectorDiv.appendChild(doorPreview);
+
+        doorSelectorDiv.addEventListener('click', () => {
+            selectedBlock = 'door';
+            document.querySelectorAll('.hotbar-slot').forEach(s => s.classList.remove('selected'));
+            doorSelectorDiv.classList.add('selected');
+        });
+
+        // Draw block preview
+        function drawBlockPreview(context, blockType, x, y, size) {
+            const block = BLOCKS[blockType];
+            if (!block || !block.color) return;
+
+            context.fillStyle = block.color;
+            context.fillRect(x, y, size, size);
+
+            if (block.top) {
+                context.fillStyle = block.top;
+                context.fillRect(x, y, size, size * 0.2);
+            }
+
+            // Add texture
+            context.strokeStyle = 'rgba(0,0,0,0.1)';
+            context.lineWidth = 1;
+            context.strokeRect(x, y, size, size);
+
+            // Door details in preview
+            if (block.isDoor) {
+                // Door planks
+                context.strokeStyle = 'rgba(0,0,0,0.3)';
+                context.lineWidth = 2;
+                context.beginPath();
+                context.moveTo(x + size * 0.33, y);
+                context.lineTo(x + size * 0.33, y + size);
+                context.stroke();
+                context.beginPath();
+                context.moveTo(x + size * 0.66, y);
+                context.lineTo(x + size * 0.66, y + size);
+                context.stroke();
+
+                // Doorknob
+                context.fillStyle = '#FFD700';
+                context.beginPath();
+                context.arc(x + size * 0.75, y + size * 0.5, 3, 0, Math.PI * 2);
+                context.fill();
+            }
+        }
+
+        // Draw block
+        function drawBlock(blockType, x, y) {
+            const block = BLOCKS[blockType];
+            if (!block || blockType === 'air') return;
+
+            const screenX = x * BLOCK_SIZE;
+            const screenY = y * BLOCK_SIZE;
+
+            // Main block color
+            ctx.fillStyle = block.color;
+            if (block.transparent) {
+                ctx.globalAlpha = 0.5;
+            }
+            ctx.fillRect(screenX, screenY, BLOCK_SIZE, BLOCK_SIZE);
+            ctx.globalAlpha = 1;
+
+            // Grass top
+            if (block.top) {
+                ctx.fillStyle = block.top;
+                ctx.fillRect(screenX, screenY, BLOCK_SIZE, BLOCK_SIZE * 0.2);
+            }
+
+            // Block outline
+            ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(screenX, screenY, BLOCK_SIZE, BLOCK_SIZE);
+
+            // Special door details
+            if (block.isDoor) {
+                const isOpen = isDoorOpen(x, y);
+
+                if (isOpen) {
+                    // Open door - show it partially to the side
+                    ctx.globalAlpha = 0.6;
+                    ctx.fillStyle = block.color;
+                    ctx.fillRect(screenX, screenY, BLOCK_SIZE * 0.2, BLOCK_SIZE);
+                    ctx.globalAlpha = 1;
+
+                    // Doorknob on thin part
+                    ctx.fillStyle = '#FFD700';
+                    ctx.beginPath();
+                    ctx.arc(screenX + BLOCK_SIZE * 0.1, screenY + BLOCK_SIZE * 0.5, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    // Closed door - show full door
+                    // Door planks (vertical lines)
+                    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(screenX + BLOCK_SIZE * 0.33, screenY);
+                    ctx.lineTo(screenX + BLOCK_SIZE * 0.33, screenY + BLOCK_SIZE);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(screenX + BLOCK_SIZE * 0.66, screenY);
+                    ctx.lineTo(screenX + BLOCK_SIZE * 0.66, screenY + BLOCK_SIZE);
+                    ctx.stroke();
+
+                    // Doorknob (gold circle)
+                    ctx.fillStyle = '#FFD700';
+                    ctx.beginPath();
+                    ctx.arc(screenX + BLOCK_SIZE * 0.75, screenY + BLOCK_SIZE * 0.5, 4, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // CLOSED text
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                    ctx.font = '10px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('CLOSED', screenX + BLOCK_SIZE / 2, screenY + BLOCK_SIZE / 2);
+                }
+            } else {
+                // Add some texture detail for non-door blocks
+                ctx.fillStyle = 'rgba(255,255,255,0.1)';
+                ctx.fillRect(screenX + 2, screenY + 2, 8, 8);
+            }
+        }
+
+        // Draw player (Steve-like)
+        function drawPlayer() {
+            const screenX = player.x * BLOCK_SIZE;
+            const screenY = player.y * BLOCK_SIZE;
+            const width = player.width * BLOCK_SIZE;
+            const height = player.height * BLOCK_SIZE;
+
+            // Body (blue shirt)
+            ctx.fillStyle = '#00CED1';
+            ctx.fillRect(screenX + width * 0.2, screenY + height * 0.4, width * 0.6, height * 0.4);
+
+            // Head (skin tone)
+            ctx.fillStyle = '#F5CBA7';
+            ctx.fillRect(screenX + width * 0.15, screenY + height * 0.1, width * 0.7, height * 0.3);
+
+            // Eyes
+            ctx.fillStyle = '#000';
+            ctx.fillRect(screenX + width * 0.3, screenY + height * 0.2, width * 0.15, height * 0.08);
+            ctx.fillRect(screenX + width * 0.55, screenY + height * 0.2, width * 0.15, height * 0.08);
+
+            // Legs (dark blue)
+            ctx.fillStyle = '#1E3A5F';
+            ctx.fillRect(screenX + width * 0.25, screenY + height * 0.8, width * 0.2, height * 0.2);
+            ctx.fillRect(screenX + width * 0.55, screenY + height * 0.8, width * 0.2, height * 0.2);
+
+            // Arms
+            ctx.fillStyle = '#00CED1';
+            ctx.fillRect(screenX + width * 0.05, screenY + height * 0.45, width * 0.15, height * 0.3);
+            ctx.fillRect(screenX + width * 0.8, screenY + height * 0.45, width * 0.15, height * 0.3);
+        }
+
+        // Update player physics
+        function updatePlayer() {
+            // Horizontal movement
+            if (player.moveLeft) {
+                player.x -= player.speed;
+                if (player.x < 0) player.x = 0;
+            }
+            if (player.moveRight) {
+                player.x += player.speed;
+                if (player.x > GRID_WIDTH - player.width) player.x = GRID_WIDTH - player.width;
+            }
+
+            // Apply gravity
+            player.velocityY += player.gravity;
+            player.y += player.velocityY;
+
+            // Check ground collision
+            player.onGround = false;
+            const feetY = Math.floor(player.y + player.height);
+            const leftX = Math.floor(player.x);
+            const rightX = Math.floor(player.x + player.width);
+
+            if (feetY < GRID_HEIGHT) {
+                const leftBlock = world[feetY][leftX];
+                const rightBlock = world[feetY][rightX];
+                // Check if blocks are solid (not air and not open door)
+                const leftSolid = leftBlock !== 'air' && !(leftBlock === 'door' && isDoorOpen(leftX, feetY));
+                const rightSolid = rightBlock !== 'air' && !(rightBlock === 'door' && isDoorOpen(rightX, feetY));
+
+                if (leftSolid || rightSolid) {
+                    player.y = feetY - player.height;
+                    player.velocityY = 0;
+                    player.onGround = true;
+                }
+            }
+
+            // Check ceiling collision
+            const headY = Math.floor(player.y);
+            if (headY >= 0 && player.velocityY < 0) {
+                const leftBlock = world[headY][leftX];
+                const rightBlock = world[headY][rightX];
+                // Check if blocks are solid (not air and not open door)
+                const leftSolid = leftBlock !== 'air' && !(leftBlock === 'door' && isDoorOpen(leftX, headY));
+                const rightSolid = rightBlock !== 'air' && !(rightBlock === 'door' && isDoorOpen(rightX, headY));
+
+                if (leftSolid || rightSolid) {
+                    player.y = headY + 1;
+                    player.velocityY = 0;
+                }
+            }
+
+            // Bottom boundary
+            if (player.y > GRID_HEIGHT - player.height) {
+                player.y = GRID_HEIGHT - player.height;
+                player.velocityY = 0;
+                player.onGround = true;
+            }
+        }
+
+        // Handle keyboard
+        const keys = {};
+        document.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+
+            if (e.code === 'Space' && player.onGround) {
+                player.velocityY = -player.jumpPower;
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+
+        // Handle mouse clicks
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            const gridX = Math.floor(mouseX / BLOCK_SIZE);
+            const gridY = Math.floor(mouseY / BLOCK_SIZE);
+
+            if (gridX >= 0 && gridX < GRID_WIDTH && gridY >= 0 && gridY < GRID_HEIGHT) {
+                const blockAtClick = world[gridY][gridX];
+
+                // If clicking on a door, toggle it open/closed
+                if (blockAtClick === 'door') {
+                    toggleDoor(gridX, gridY);
+                }
+                // If clicking on another block, break it
+                else if (blockAtClick !== 'air') {
+                    world[gridY][gridX] = 'air';
+                    // Remove door state if it was a door
+                    const key = `${gridX},${gridY}`;
+                    delete doorStates[key];
+                }
+                // If clicking on air, place the selected block
+                else {
+                    world[gridY][gridX] = selectedBlock;
+                }
+            }
+        });
+
+        // Clear all blocks button
+        document.getElementById('clearButton').addEventListener('click', () => {
+            if (confirm('Are you sure you want to CLEAR ALL BLOCKS? This cannot be undone!')) {
+                // Clear everything to air
+                for (let y = 0; y < GRID_HEIGHT; y++) {
+                    for (let x = 0; x < GRID_WIDTH; x++) {
+                        world[y][x] = 'air';
+                    }
+                }
+                // Reset all door states
+                doorStates = {};
+            }
+        });
+
+        // Game loop
+        function gameLoop() {
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Sky gradient
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#87CEEB');
+            gradient.addColorStop(1, '#E0F6FF');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw world
+            for (let y = 0; y < GRID_HEIGHT; y++) {
+                for (let x = 0; x < GRID_WIDTH; x++) {
+                    drawBlock(world[y][x], x, y);
+                }
+            }
+
+            // Update controls
+            player.moveLeft = keys['ArrowLeft'];
+            player.moveRight = keys['ArrowRight'];
+
+            // Update and draw player
+            updatePlayer();
+            drawPlayer();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Start game
+        gameLoop();
+    </script>
+</body>
+</html>

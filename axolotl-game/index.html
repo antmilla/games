@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Axolotl Treasure Hunt 🦎💜</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(to bottom, #4A148C, #7B1FA2, #9C27B0);
+            font-family: 'Comic Sans MS', cursive, sans-serif;
+        }
+        h1 {
+            color: white;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.5);
+            margin: 20px 0;
+        }
+        #game-container {
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        #info {
+            color: white;
+            font-size: 18px;
+            margin-top: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+<body>
+    <h1>🦎 AXOLOTL TREASURE HUNT 💜</h1>
+    <div id="game-container"></div>
+    <div id="info">Arrow Keys to Swim • Find all the treasure chests!</div>
+
+    <script type="module" src="game.js"></script>
+</body>
+</html>

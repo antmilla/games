@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pokemon Resort</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(to bottom, #87CEEB, #98D8C8);
+            font-family: 'Arial', sans-serif;
+        }
+        #gameContainer {
+            text-align: center;
+        }
+        canvas {
+            border: 4px solid #333;
+            background: white;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            display: block;
+            position: relative;
+            z-index: 1;
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 18px;
+            pointer-events: none;
+            z-index: 10;
+        }
+        #minimap {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            border: 4px solid #333;
+            background: rgba(0,0,0,0.5);
+            border-radius: 10px;
+        }
+        #controls {
+            margin-top: 10px;
+            color: white;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 10px;
+            position: relative;
+            z-index: 20;
+        }
+        button {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            pointer-events: auto;
+            position: relative;
+            z-index: 30;
+        }
+        button:hover {
+            background: #ff5252;
+        }
+        #characterSelect {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+        }
+        .character-option {
+            display: inline-block;
+            margin: 10px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .character-option:hover {
+            transform: scale(1.1);
+        }
+        .character-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 3px solid #333;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="characterSelect">
+            <h1>Choose Your Character!</h1>
+            <div id="characterOptions"></div>
+        </div>
+        <div id="ui" style="display: none;">
+            <div>Level: <span id="level">1</span></div>
+            <div>Coins: <span id="coins">0</span></div>
+            <div>Master Balls: <span id="masterBalls">0</span></div>
+            <div>Rare Candies: <span id="rareCandies">0</span></div>
+            <div>Berry Seeds: <span id="berrySeeds">0</span></div>
+            <div>Pokemon Caught: <span id="pokemonCount">0</span></div>
+            <div>View: <span id="viewMode">Top</span></div>
+        </div>
+        <canvas id="gameCanvas" width="800" height="600" style="display: none;"></canvas>
+        <div id="controls" style="display: none;">
+            <button id="switchView">Switch View (V)</button>
+            <button id="buildMenu">Build Menu (B)</button>
+            <button id="pokemonList">Pokemon List (P)</button>
+            <button id="toggleMusic">Music: ON (M)</button>
+            <button id="saveGame">Save Game (S)</button>
+            <button id="newGame">New Game</button>
+        </div>
+    </div>
+    <script type="module" src="game.js"></script>
+</body>
+</html>
