@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Two Truths and a Lie!</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
+    font-family: "Comic Sans MS", "Trebuchet MS", sans-serif;
+    background: linear-gradient(135deg, #ffd6f5 0%, #cdfaff 50%, #d6ffcd 100%);
+    color: #2a0033;
+    overflow-x: hidden;
+  }
+
+  #app {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 18px;
+    position: relative;
+  }
+
+  #header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  #title {
+    font-size: 28px;
+    font-weight: bold;
+    color: #4a0033;
+    text-shadow: 2px 2px 0 #fff;
+  }
+  #score {
+    background: #ffd700;
+    color: #4a0033;
+    padding: 10px 18px;
+    border-radius: 16px;
+    border: 3px solid #c47a00;
+    font-size: 22px;
+    font-weight: bold;
+    box-shadow: 0 4px 0 #80005a;
+  }
+
+  .phase { animation: fadeIn 0.3s ease-out; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  .hidden { display: none !important; }
+
+  /* ---- TYPE phase ---- */
+  #type-view h2 {
+    font-size: 28px;
+    margin: 0 0 8px;
+    text-align: center;
+    color: #4a0033;
+  }
+  #type-view > p {
+    text-align: center;
+    font-size: 18px;
+    margin: 0 0 22px;
+    color: #4a0033;
+  }
+  .form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  .input-row {
+    background: #fff;
+    border-radius: 18px;
+    padding: 14px 18px;
+    border: 4px solid #5fa8ff;
+    box-shadow: 0 4px 0 #2c7aa8;
+  }
+  .input-row.truth { border-color: #3a8a3a; box-shadow: 0 4px 0 #1a5a1a; background: linear-gradient(#f0fff0, #fff); }
+  .input-row.lie { border-color: #c44; box-shadow: 0 4px 0 #7a1a1a; background: linear-gradient(#fff0f0, #fff); }
+  .input-row label {
+    display: block;
+    font-weight: bold;
+    font-size: 16px;
+    margin-bottom: 6px;
+    color: #4a0033;
+  }
+  .input-row input {
+    width: 100%;
+    border: none;
+    background: transparent;
+    font-size: 20px;
+    font-family: inherit;
+    color: #2a0033;
+    outline: none;
+    padding: 6px 0;
+  }
+  .input-row input::placeholder {
+    color: #aaa;
+    font-style: italic;
+    font-size: 17px;
+  }
+
+  .form-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+  }
+  .big-btn {
+    font-family: inherit;
+    font-size: 24px;
+    padding: 14px 30px;
+    border: 4px solid #ff5fc6;
+    border-radius: 18px;
+    background: linear-gradient(#ffd6f5, #ff8ed4);
+    color: #4a0033;
+    cursor: pointer;
+    box-shadow: 0 5px 0 #80005a;
+    text-shadow: 1px 1px 0 #ffe6f5;
+    font-weight: bold;
+  }
+  .big-btn:active { transform: translateY(2px); box-shadow: 0 3px 0 #80005a; }
+  .computer-btn {
+    background: linear-gradient(#cdfaff, #5fd9ff);
+    border-color: #2c7aa8;
+    box-shadow: 0 5px 0 #003d5a;
+    text-shadow: 1px 1px 0 #d6f5ff;
+    color: #002a3d;
+  }
+  .computer-btn:active { box-shadow: 0 3px 0 #003d5a; }
+  .thinking-dots::after {
+    content: '...';
+    animation: dots 1.2s steps(4, end) infinite;
+    display: inline-block;
+    width: 1.2em;
+    text-align: left;
+  }
+  @keyframes dots {
+    0%   { content: ''; }
+    25%  { content: '.'; }
+    50%  { content: '..'; }
+    75%  { content: '...'; }
+    100% { content: ''; }
+  }
+  .small-btn {
+    font-family: inherit;
+    font-size: 16px;
+    padding: 8px 18px;
+    border: 2px solid #5fa8ff;
+    border-radius: 12px;
+    background: #fff;
+    color: #2c7aa8;
+    cursor: pointer;
+    box-shadow: 0 3px 0 #2c7aa8;
+  }
+  .small-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #2c7aa8; }
+
+  /* ---- PASS phase ---- */
+  #pass-view {
+    text-align: center;
+    padding: 40px 0;
+  }
+  #pass-view .big-emoji {
+    font-size: 100px;
+    animation: bob 1.6s ease-in-out infinite;
+  }
+  @keyframes bob {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-12px); }
+  }
+  #pass-view h2 {
+    font-size: 32px;
+    margin: 18px 0 6px;
+    color: #4a0033;
+  }
+  #pass-view p {
+    font-size: 22px;
+    margin-bottom: 30px;
+  }
+
+  /* ---- PLAY phase (guess + reveal) ---- */
+  #character {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 22px;
+  }
+  #char-emoji {
+    font-size: 70px;
+    flex-shrink: 0;
+    animation: bob 1.6s ease-in-out infinite;
+  }
+  #speech-bubble {
+    flex: 1;
+    background: #fff;
+    border: 4px solid #ff5fc6;
+    border-radius: 22px;
+    padding: 16px 22px;
+    font-size: 19px;
+    position: relative;
+    box-shadow: 0 4px 0 #80005a;
+  }
+  #speech-bubble::before {
+    content: '';
+    position: absolute;
+    left: -16px;
+    top: 28px;
+    width: 0; height: 0;
+    border-top: 14px solid transparent;
+    border-bottom: 14px solid transparent;
+    border-right: 18px solid #ff5fc6;
+  }
+  #speech-bubble::after {
+    content: '';
+    position: absolute;
+    left: -10px;
+    top: 30px;
+    width: 0; height: 0;
+    border-top: 12px solid transparent;
+    border-bottom: 12px solid transparent;
+    border-right: 14px solid #fff;
+  }
+
+  #cards {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+  .card {
+    font-family: inherit;
+    font-size: 19px;
+    padding: 18px 22px;
+    text-align: left;
+    border: 4px solid #5fa8ff;
+    border-radius: 18px;
+    background: #fff;
+    color: #2a0033;
+    cursor: pointer;
+    box-shadow: 0 4px 0 #2c7aa8;
+    transition: transform 0.08s, box-shadow 0.08s;
+    line-height: 1.4;
+    word-wrap: break-word;
+  }
+  .card:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 0 #2c7aa8;
+  }
+  .card:active:not(:disabled) {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 #2c7aa8;
+  }
+  .card:disabled { cursor: default; }
+  .card.true {
+    background: linear-gradient(#d6ffcd, #97e890);
+    border-color: #3a8a3a;
+    box-shadow: 0 4px 0 #1a5a1a;
+  }
+  .card.lie {
+    background: linear-gradient(#ffd6d6, #ff9a9a);
+    border-color: #c44;
+    box-shadow: 0 4px 0 #7a1a1a;
+  }
+  .card .badge {
+    display: inline-block;
+    margin-right: 10px;
+    font-weight: bold;
+    font-size: 22px;
+  }
+
+  #controls {
+    display: flex;
+    justify-content: center;
+    margin-top: 12px;
+  }
+  #next-btn {
+    font-family: inherit;
+    font-size: 24px;
+    padding: 14px 30px;
+    border: 4px solid #ff5fc6;
+    border-radius: 18px;
+    background: linear-gradient(#ffd6f5, #ff8ed4);
+    color: #4a0033;
+    cursor: pointer;
+    box-shadow: 0 5px 0 #80005a;
+    text-shadow: 1px 1px 0 #ffe6f5;
+    font-weight: bold;
+    visibility: hidden;
+  }
+  #next-btn.visible { visibility: visible; }
+  #next-btn:active {
+    transform: translateY(2px);
+    box-shadow: 0 3px 0 #80005a;
+  }
+
+  /* confetti */
+  #confetti {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 100;
+  }
+  .confetti-bit {
+    position: absolute;
+    width: 12px; height: 12px;
+    border-radius: 3px;
+    animation: confetti-fall 1.8s linear forwards;
+  }
+  @keyframes confetti-fall {
+    0% { transform: translateY(-30px) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(110vh) rotate(720deg); opacity: 0.8; }
+  }
+
+  #footer {
+    text-align: center;
+    margin-top: 24px;
+    color: #4a0033;
+    opacity: 0.7;
+    font-size: 14px;
+  }
+
+  .err {
+    color: #c44;
+    font-size: 16px;
+    text-align: center;
+    margin-top: 8px;
+    min-height: 22px;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <div id="title">🤔 Two Truths &amp; a Lie 🎭</div>
+    <div id="score">⭐ <span id="score-num">0</span></div>
+  </div>
+
+  <!-- TYPE phase -->
+  <div id="type-view" class="phase">
+    <h2>📝 Type 2 Truths and 1 Lie!</h2>
+    <p>Then pass to a friend to guess the LIE!</p>
+    <div class="form">
+      <div class="input-row truth">
+        <label>✅ TRUTH 1 (something true)</label>
+        <input id="t1" placeholder="Type something true..." maxlength="120" />
+      </div>
+      <div class="input-row truth">
+        <label>✅ TRUTH 2 (another true thing)</label>
+        <input id="t2" placeholder="Type another true thing..." maxlength="120" />
+      </div>
+      <div class="input-row lie">
+        <label>❌ LIE (something fake!)</label>
+        <input id="lie" placeholder="Type something silly that's not true..." maxlength="120" />
+      </div>
+    </div>
+    <div class="form-actions">
+      <button id="pass-btn" class="big-btn">PASS TO FRIEND →</button>
+      <button id="computer-btn" class="big-btn computer-btn">🤖 LET COMPUTER GUESS</button>
+      <button id="random-btn" class="small-btn">🎲 Or use a random one</button>
+      <div id="err" class="err"></div>
+    </div>
+  </div>
+
+  <!-- PASS phase -->
+  <div id="pass-view" class="phase hidden">
+    <div class="big-emoji">📱</div>
+    <h2>Pass the screen!</h2>
+    <p>Don't peek! 🙈</p>
+    <button id="ready-btn" class="big-btn">I'M READY — SHOW ME! →</button>
+  </div>
+
+  <!-- PLAY phase (guess + reveal) -->
+  <div id="play-view" class="phase hidden">
+    <div id="character">
+      <div id="char-emoji">👸</div>
+      <div id="speech-bubble">
+        Click the one you think is the <b style="color:#c44;">LIE</b>! 🕵️
+      </div>
+    </div>
+    <div id="cards">
+      <button class="card" data-idx="0"></button>
+      <button class="card" data-idx="1"></button>
+      <button class="card" data-idx="2"></button>
+    </div>
+    <div id="controls">
+      <button id="next-btn">NEW ROUND →</button>
+    </div>
+  </div>
+
+  <div id="footer">Round <span id="round-num">1</span></div>
+</div>
+
+<div id="confetti"></div>
+
+<script>
+// Pre-made rounds (for the "random" button when nobody wants to type)
+const ROUNDS = [
+  { truths: ["Sea turtles can hold their breath for many hours.", "Octopuses have three hearts and blue blood."], lie: "Penguins can fly when they get really scared." },
+  { truths: ["T-Rex had really tiny little arms.", "Some dinosaurs were covered in feathers."], lie: "Dinosaurs invented ice cream a long time ago." },
+  { truths: ["Honey can last forever — it never spoils!", "Bananas are technically berries."], lie: "Carrots can sing if you water them with milk." },
+  { truths: ["Mars is called the Red Planet.", "The sun is actually a giant star."], lie: "There are pizza shops on the Moon." },
+  { truths: ["Sharks have been around longer than trees.", "Sloths only poop once a week."], lie: "Cats can speak French when nobody is watching." },
+  { truths: ["Butterflies taste with their feet!", "Cows make best friends and get sad if they're apart."], lie: "Goldfish always remember their birthdays." },
+  { truths: ["A group of flamingos is called a 'flamboyance'.", "Octopuses can change color in less than a second."], lie: "Pandas only eat pancakes for breakfast." },
+  { truths: ["Bees can recognize human faces.", "Spiders have blue blood."], lie: "Snails can run faster than a person." },
+  { truths: ["Hummingbirds are the only birds that can fly backwards.", "Snakes smell with their tongues."], lie: "Elephants are scared of all stuffed animals." },
+  { truths: ["A baby kangaroo is called a 'joey'.", "Polar bears have black skin underneath their white fur."], lie: "Sheep can cast magic spells with their wool." },
+  { truths: ["Owls can turn their heads almost all the way around.", "Penguins give pebbles to their mates as gifts."], lie: "Squirrels are actually undercover secret agents." },
+  { truths: ["Some frogs can freeze solid in winter and come back to life in spring.", "Koalas have fingerprints almost identical to humans."], lie: "Rainbows taste like strawberry ice cream." },
+];
+
+// ---- DOM ----
+const typeView = document.getElementById('type-view');
+const passView = document.getElementById('pass-view');
+const playView = document.getElementById('play-view');
+const t1 = document.getElementById('t1');
+const t2 = document.getElementById('t2');
+const lie = document.getElementById('lie');
+const errEl = document.getElementById('err');
+const scoreEl = document.getElementById('score-num');
+const roundEl = document.getElementById('round-num');
+const speech = document.getElementById('speech-bubble');
+const charEmoji = document.getElementById('char-emoji');
+const nextBtn = document.getElementById('next-btn');
+const passBtn = document.getElementById('pass-btn');
+const computerBtn = document.getElementById('computer-btn');
+const randomBtn = document.getElementById('random-btn');
+const readyBtn = document.getElementById('ready-btn');
+const cardEls = [...document.querySelectorAll('.card')];
+
+let score = 0;
+let roundNum = 0;
+let answered = false;
+let currentItems = null;   // [{text, isLie}, {text, isLie}, {text, isLie}]
+let usedRounds = [];
+let computerPlaying = false;
+
+// ---- Sound ----
+let audioCtx = null;
+function ensureAudio() {
+  if (!audioCtx) try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+}
+function tone(freq, dur=0.12, type='sine', vol=0.18) {
+  ensureAudio();
+  if (!audioCtx) return;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.value = vol;
+  g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+  o.connect(g).connect(audioCtx.destination);
+  o.start();
+  o.stop(audioCtx.currentTime + dur);
+}
+const sCorrect = () => { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => tone(f, 0.18, 'triangle', 0.18), i*100)); };
+const sWrong = () => { tone(200, 0.20, 'sawtooth', 0.16); setTimeout(() => tone(150, 0.30, 'sawtooth', 0.14), 220); };
+const sClick = () => tone(660, 0.08, 'square', 0.12);
+
+// ---- Confetti ----
+function shootConfetti() {
+  const container = document.getElementById('confetti');
+  const colors = ['#ff5fc6','#ffe14c','#5fd96b','#5fa8ff','#9b6cff','#ff8e3c'];
+  for (let i = 0; i < 60; i++) {
+    const bit = document.createElement('div');
+    bit.className = 'confetti-bit';
+    bit.style.left = (Math.random() * 100) + 'vw';
+    bit.style.background = colors[Math.floor(Math.random() * colors.length)];
+    bit.style.animationDelay = (Math.random() * 0.3) + 's';
+    bit.style.animationDuration = (1.4 + Math.random() * 1.0) + 's';
+    container.appendChild(bit);
+    setTimeout(() => bit.remove(), 2500);
+  }
+}
+
+// ---- Phase switching ----
+function showPhase(phase) {
+  typeView.classList.add('hidden');
+  passView.classList.add('hidden');
+  playView.classList.add('hidden');
+  if (phase === 'type') typeView.classList.remove('hidden');
+  if (phase === 'pass') passView.classList.remove('hidden');
+  if (phase === 'play') playView.classList.remove('hidden');
+}
+
+// ---- Round flow ----
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function pickRandomRound() {
+  if (usedRounds.length >= ROUNDS.length - 2) usedRounds = [];
+  let idx;
+  do { idx = Math.floor(Math.random() * ROUNDS.length); } while (usedRounds.includes(idx));
+  usedRounds.push(idx);
+  return ROUNDS[idx];
+}
+
+function startTypePhase() {
+  t1.value = '';
+  t2.value = '';
+  lie.value = '';
+  errEl.textContent = '';
+  showPhase('type');
+  setTimeout(() => t1.focus(), 100);
+}
+
+function buildRoundFromInputs() {
+  const tv1 = t1.value.trim();
+  const tv2 = t2.value.trim();
+  const lv  = lie.value.trim();
+  if (!tv1 || !tv2 || !lv) {
+    errEl.textContent = 'Please fill in all 3!';
+    return null;
+  }
+  return { truths: [tv1, tv2], lie: lv };
+}
+
+function startPlayPhase(round) {
+  roundNum++;
+  roundEl.textContent = roundNum;
+  answered = false;
+  computerPlaying = false;   // default to human guessing; computerPlay overrides after
+  currentItems = [
+    { text: round.truths[0], isLie: false },
+    { text: round.truths[1], isLie: false },
+    { text: round.lie, isLie: true },
+  ];
+  shuffle(currentItems);
+  cardEls.forEach((el, i) => {
+    el.disabled = false;
+    el.className = 'card';
+    el.innerHTML = `<span class="badge">${i + 1}.</span>${escapeHTML(currentItems[i].text)}`;
+  });
+  speech.innerHTML = `Two are <b style="color:#3a8a3a;">TRUE</b>, one is a <b style="color:#c44;">LIE</b>. Pick the <b style="color:#c44;">LIE</b>!`;
+  charEmoji.textContent = '👸';
+  nextBtn.classList.remove('visible');
+  showPhase('play');
+}
+
+function escapeHTML(s) {
+  return s.replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+
+function pickAnswer(i) {
+  if (answered) return;
+  answered = true;
+  ensureAudio();
+  sClick();
+  const correct = currentItems[i].isLie;
+  cardEls.forEach((el, idx) => {
+    el.disabled = true;
+    if (currentItems[idx].isLie) {
+      el.classList.add('lie');
+      el.innerHTML = `<span class="badge">❌</span>${escapeHTML(currentItems[idx].text)}<br><span style="color:#c44;font-weight:bold;">↑ This was the LIE!</span>`;
+    } else {
+      el.classList.add('true');
+      el.innerHTML = `<span class="badge">✅</span>${escapeHTML(currentItems[idx].text)}<br><span style="color:#3a8a3a;font-weight:bold;">↑ This was TRUE!</span>`;
+    }
+  });
+  if (computerPlaying) {
+    // The computer is the one guessing — you score by TRICKING it
+    if (correct) {
+      // computer guessed the lie — no point for you
+      speech.innerHTML = `🤖 Beep boop! I got it — the lie was #${i + 1}! Try to trick me next time!`;
+      charEmoji.textContent = '🤖';
+      sWrong();
+    } else {
+      score++;
+      scoreEl.textContent = score;
+      speech.innerHTML = `🎉 <b>You tricked the COMPUTER!</b> +1 point! 🕵️`;
+      charEmoji.textContent = '🥳';
+      sCorrect();
+      shootConfetti();
+    }
+  } else {
+    // Friend (or solo human) is guessing — score by finding the lie
+    if (correct) {
+      score++;
+      scoreEl.textContent = score;
+      speech.innerHTML = `🎉 <b>YES!</b> You found the LIE! Great detective work! 🕵️`;
+      charEmoji.textContent = '🥳';
+      sCorrect();
+      shootConfetti();
+    } else {
+      speech.innerHTML = `😄 Oh no, that one was actually <b style="color:#3a8a3a;">TRUE</b>!<br>The lie was the red one. Tricky!`;
+      charEmoji.textContent = '😅';
+      sWrong();
+    }
+  }
+  nextBtn.classList.add('visible');
+}
+
+// ---- Wire up ----
+passBtn.addEventListener('click', () => {
+  ensureAudio();
+  const round = buildRoundFromInputs();
+  if (!round) return;
+  sClick();
+  // Save round so the PASS phase can hand it off without leaking
+  passView.dataset.round = JSON.stringify(round);
+  showPhase('pass');
+});
+
+// ---- Computer guess ----
+// The computer is silly! It mostly guesses randomly, but occasionally
+// notices a really obvious giveaway word.
+const REALLY_OBVIOUS_WORDS = ['unicorn', 'magic spell', 'cha-cha', 'undercover'];
+let lastComputerGuess = -1;
+let lastLastComputerGuess = -1;
+
+function computerGuessIdx(items) {
+  // 15% of the time: notice a really-obvious word (if any)
+  if (Math.random() < 0.15) {
+    for (let i = 0; i < items.length; i++) {
+      const text = items[i].text.toLowerCase();
+      if (REALLY_OBVIOUS_WORDS.some(w => text.includes(w))) {
+        lastLastComputerGuess = lastComputerGuess;
+        lastComputerGuess = i;
+        return i;
+      }
+    }
+  }
+  // Random pick, but try not to repeat the last 2 picks (so it visibly varies)
+  let pick;
+  let tries = 0;
+  do {
+    pick = Math.floor(Math.random() * items.length);
+    tries++;
+  } while ((pick === lastComputerGuess || pick === lastLastComputerGuess) && tries < 8);
+  lastLastComputerGuess = lastComputerGuess;
+  lastComputerGuess = pick;
+  return pick;
+}
+
+const THINKING_LINES = [
+  '🤔 Hmm, let me see',
+  '💭 Computing my circuits',
+  '🧠 Thinking really hard',
+  '🤖 Reading the words',
+  '🔍 Looking for fake stuff',
+];
+
+function computerPlay(round) {
+  startPlayPhase(round);
+  computerPlaying = true;   // override the default after startPlayPhase resets it
+  // show the thinking animation
+  charEmoji.textContent = '🤖';
+  speech.innerHTML = `<span class="thinking-dots">${THINKING_LINES[Math.floor(Math.random() * THINKING_LINES.length)]}</span>`;
+  // Disable cards while the computer "thinks"
+  cardEls.forEach(el => { el.disabled = true; });
+
+  let lineIdx = 0;
+  const interval = setInterval(() => {
+    lineIdx = (lineIdx + 1) % THINKING_LINES.length;
+    speech.innerHTML = `<span class="thinking-dots">${THINKING_LINES[lineIdx]}</span>`;
+  }, 900);
+
+  setTimeout(() => {
+    clearInterval(interval);
+    const guess = computerGuessIdx(currentItems);
+    speech.innerHTML = `🤖 I think... <b>card #${guess + 1}</b> is the LIE!`;
+    // Highlight the computer's guess briefly, then reveal
+    cardEls[guess].style.boxShadow = '0 0 0 6px #ffe14c';
+    setTimeout(() => {
+      cardEls[guess].style.boxShadow = '';
+      pickAnswer(guess);   // this reveals + scores
+    }, 1200);
+  }, 3200);
+}
+
+computerBtn.addEventListener('click', () => {
+  ensureAudio();
+  const round = buildRoundFromInputs();
+  if (!round) return;
+  sClick();
+  computerPlay(round);
+});
+
+randomBtn.addEventListener('click', () => {
+  ensureAudio();
+  sClick();
+  startPlayPhase(pickRandomRound());
+});
+
+readyBtn.addEventListener('click', () => {
+  ensureAudio();
+  sClick();
+  const round = JSON.parse(passView.dataset.round || '{}');
+  if (!round.truths) return;
+  startPlayPhase(round);
+});
+
+cardEls.forEach((el, i) => {
+  el.addEventListener('click', () => pickAnswer(i));
+});
+
+nextBtn.addEventListener('click', () => {
+  ensureAudio();
+  sClick();
+  startTypePhase();
+});
+
+// allow Enter key on the form to advance
+[t1, t2, lie].forEach((el) => {
+  el.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (el === t1) t2.focus();
+      else if (el === t2) lie.focus();
+      else passBtn.click();
+    }
+  });
+});
+
+startTypePhase();
+</script>
+</body>
+</html>
