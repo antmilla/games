@@ -47,13 +47,44 @@
     border-radius: 12px;
     pointer-events: none;
   }
+  #ride-menu {
+    position: fixed;
+    bottom: 60px;
+    right: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-end;
+    z-index: 10;
+  }
+  .ride-btn {
+    font-family: inherit;
+    font-size: 18px;
+    background: linear-gradient(#ffd6f5, #ff8ed4);
+    color: #4a0033;
+    border: 3px solid #ff5fc6;
+    border-radius: 14px;
+    padding: 8px 14px;
+    cursor: pointer;
+    box-shadow: 2px 3px 0 #80005a;
+    text-shadow: 1px 1px 0 #ffe6f5;
+    transition: transform 0.08s;
+  }
+  .ride-btn:hover { transform: translateY(-1px); }
+  .ride-btn:active { transform: translateY(1px); box-shadow: 1px 1px 0 #80005a; }
+  .ride-btn.unicorn { background: linear-gradient(#fffacc, #ffe14c); border-color: #ffaa00; color: #5a3a00; text-shadow: 1px 1px 0 #fff5d6; box-shadow: 2px 3px 0 #805500; }
+  .ride-btn.dragon  { background: linear-gradient(#cdfaff, #5fd9ff); border-color: #2c7aa8; color: #002a3d; text-shadow: 1px 1px 0 #d6f5ff; box-shadow: 2px 3px 0 #003d5a; }
+  .ride-btn.boss { background: linear-gradient(#d6a8ff, #7a3ade); border-color: #4a1a8a; color: #fff5ff; text-shadow: 1px 1px 0 #2a0040; box-shadow: 2px 3px 0 #2a0040; font-weight: bold; }
+  .ride-btn.dismount { background: linear-gradient(#ffcccc, #ff8888); border-color: #cc4444; color: #4a0000; }
+  .hidden { display: none !important; }
+
   #message {
     position: fixed;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
     color: #fff;
-    font-size: 32px;
+    font-size: 28px;
     text-align: center;
     background: rgba(40, 0, 60, 0.85);
     padding: 18px 28px;
@@ -62,6 +93,9 @@
     display: none;
     pointer-events: none;
     text-shadow: 2px 2px 0 #000;
+    white-space: pre-line;
+    max-width: 80%;
+    line-height: 1.3;
   }
 </style>
 </head>
@@ -71,8 +105,16 @@
   ✨ Sparkles: <span id="sparkles">0</span> &nbsp; 🍄 Mushrooms: <span id="mushrooms">0</span> &nbsp; 💎 Treasures: <span id="treasures">0</span>
 </div>
 <div id="title">🌲 Magical Forest 🧚</div>
-<div id="help">Use arrow keys or WASD to explore! Find sparkles, mushrooms, and hidden treasures ✨</div>
+<div id="help">Arrow keys / WASD to move &nbsp;•&nbsp; SPACE to throw sparkles ✨ &nbsp;•&nbsp; Collect 20 sparkles, 5 mushrooms, and 1 chest to unlock the LEGENDARY treasure! 👑</div>
 <div id="message"></div>
+
+<div id="ride-menu">
+  <button id="ride-btn" class="ride-btn">🐎 RIDE</button>
+  <button id="ride-unicorn-btn" class="ride-btn unicorn hidden">🦄 Ride Unicorn</button>
+  <button id="ride-dragon-btn" class="ride-btn dragon hidden">🐉 Ride Dragon</button>
+  <button id="ride-boss-btn" class="ride-btn boss hidden">🐲 Ride BOSS Dragon!</button>
+  <button id="dismount-btn" class="ride-btn dismount hidden">🚶 Get Off</button>
+</div>
 
 <script>
 const canvas = document.getElementById('game');
@@ -322,6 +364,147 @@ people.forEach((p, i) => {
   p.greetCooldown = 0;
 });
 
+// MEGA TREASURE — the biggest hidden treasure in the forest!
+// Hidden in the far corner so it takes exploring to find.
+// Only APPEARS when you've collected enough other things.
+const megaTreasure = {
+  x: WORLD_W - 220,
+  y: 220,
+  collected: false,
+  revealed: false,        // becomes true once requirements are met
+  spin: 0,
+  pulse: 0,
+};
+// Requirements to reveal the legendary treasure
+const REQ_SPARKLES = 20;
+const REQ_MUSHROOMS = 5;
+const REQ_TREASURES = 1;
+
+// BOSS DRAGON — only appears after mega treasure is found
+let bossDragon = null;
+let bossActive = false;
+let bossDefeated = false;
+
+// Player health (for boss fight)
+let playerHearts = 5;
+const MAX_HEARTS = 5;
+let playerInvuln = 0;          // ms of invulnerability after taking a hit
+
+// Projectiles
+const playerSparkles = [];     // shot by player
+const bossBubbles = [];        // shot by boss
+
+// Cooldown for shooting
+let shootCooldown = 0;
+
+// Riding state — 'unicorn' | 'dragon' | null
+let riding = null;
+let mount = null;  // the creature being ridden
+const RIDE_SPEED = { unicorn: 6.5, dragon: 7.5, boss_dragon: 9.5 };
+
+// Ride menu button wiring
+const rideBtn = document.getElementById('ride-btn');
+const rideUnicornBtn = document.getElementById('ride-unicorn-btn');
+const rideDragonBtn = document.getElementById('ride-dragon-btn');
+const rideBossBtn = document.getElementById('ride-boss-btn');
+const dismountBtn = document.getElementById('dismount-btn');
+
+function showRideChoices() {
+  rideBtn.classList.add('hidden');
+  rideUnicornBtn.classList.remove('hidden');
+  rideDragonBtn.classList.remove('hidden');
+  // Boss dragon option is only unlocked after defeating the boss
+  if (bossDefeated) rideBossBtn.classList.remove('hidden');
+}
+function hideRideChoices() {
+  rideBtn.classList.remove('hidden');
+  rideUnicornBtn.classList.add('hidden');
+  rideDragonBtn.classList.add('hidden');
+  rideBossBtn.classList.add('hidden');
+}
+function showDismount() {
+  rideBtn.classList.add('hidden');
+  rideUnicornBtn.classList.add('hidden');
+  rideDragonBtn.classList.add('hidden');
+  rideBossBtn.classList.add('hidden');
+  dismountBtn.classList.remove('hidden');
+}
+function hideDismount() {
+  dismountBtn.classList.add('hidden');
+  rideBtn.classList.remove('hidden');
+}
+function startRiding(type) {
+  riding = type;
+  // Summon a brand new creature right next to the player to ride
+  if (type === 'unicorn') {
+    mount = {
+      kind: 'unicorn',
+      x: player.x, y: player.y,
+      bodyColor: '#ffffff',
+      maneHue: randInt(0, 360),
+      gallopPhase: 0,
+      facing: player.facing,
+    };
+    sparkleSound();
+    showMessage("🦄 You're riding a unicorn! Wheee! ✨", 1800);
+  } else if (type === 'dragon') {
+    mount = {
+      kind: 'dragon',
+      x: player.x, y: player.y,
+      color: ['#5fd96b', '#5fa8ff', '#ff9a3a', '#c46bff', '#ff6ba8'][randInt(0,4)],
+      bellyColor: '#fff5cc',
+      flapPhase: 0,
+      puffTimer: 30,
+      puffs: [],
+      facing: player.facing,
+    };
+    mushroomSound();
+    showMessage("🐉 You're riding a dragon! ZOOM! 💨", 1800);
+  } else if (type === 'boss_dragon') {
+    mount = {
+      kind: 'boss_dragon',
+      x: player.x, y: player.y,
+      flapPhase: 0,
+      puffTimer: 30,
+      puffs: [],
+      facing: player.facing,
+    };
+    treasureSound();
+    setTimeout(treasureSound, 200);
+    showMessage("🐲 You're riding the BOSS DRAGON! Unstoppable! ⚡", 2400);
+  }
+  showDismount();
+}
+function stopRiding() {
+  riding = null;
+  mount = null;
+  hideDismount();
+  showMessage("🚶 You hopped off! 💛", 1200);
+}
+
+rideBtn.addEventListener('click', () => {
+  ensureAudio();
+  showRideChoices();
+});
+rideUnicornBtn.addEventListener('click', () => { ensureAudio(); startRiding('unicorn'); });
+rideDragonBtn.addEventListener('click', () => { ensureAudio(); startRiding('dragon'); });
+rideBossBtn.addEventListener('click', () => { ensureAudio(); startRiding('boss_dragon'); });
+dismountBtn.addEventListener('click', stopRiding);
+
+// Signposts — wooden signs that point toward the nearest treasure
+const signs = [];
+for (let i = 0; i < 10; i++) {
+  // first one near the player so Camilla finds one right away
+  const nearStart = i === 0;
+  signs.push({
+    x: nearStart ? PX + 90 : rand(150, WORLD_W - 150),
+    y: nearStart ? PY + 60 : rand(150, WORLD_H - 150),
+    angle: 0,         // direction the arrow points (radians)
+    targetTreasure: null,
+    wobble: rand(0, Math.PI*2),
+  });
+}
+
 // Pond
 const ponds = [];
 for (let i = 0; i < 3; i++) {
@@ -382,16 +565,38 @@ function update(dt) {
   if (keys['arrowright'] || keys['d']) dx += 1;
   if (keys['arrowup'] || keys['w']) dy -= 1;
   if (keys['arrowdown'] || keys['s']) dy += 1;
+  const moveSpeed = riding ? RIDE_SPEED[riding] : player.speed;
   if (dx || dy) {
     const len = Math.hypot(dx, dy);
     dx /= len; dy /= len;
-    player.x += dx * player.speed;
-    player.y += dy * player.speed;
+    player.x += dx * moveSpeed;
+    player.y += dy * moveSpeed;
     if (dx !== 0) player.facing = dx > 0 ? 1 : -1;
     player.walkPhase += 0.25;
   }
   player.x = Math.max(20, Math.min(WORLD_W - 20, player.x));
   player.y = Math.max(20, Math.min(WORLD_H - 20, player.y));
+
+  // Mount follows the player exactly
+  if (mount) {
+    mount.x = player.x;
+    mount.y = player.y;
+    mount.facing = player.facing;
+    if (mount.kind === 'unicorn') {
+      mount.gallopPhase += 0.3;
+    } else {
+      // dragon and boss_dragon both flap and puff
+      mount.flapPhase += 0.25;
+      mount.puffTimer -= 1;
+      if (mount.puffTimer <= 0) {
+        mount.puffTimer = randInt(40, 90);
+        const offset = mount.kind === 'boss_dragon' ? 30 : 18;
+        mount.puffs.push({ x: mount.x + mount.facing * offset, y: mount.y - 4, life: 60, r: mount.kind === 'boss_dragon' ? 7 : 4 });
+      }
+      mount.puffs.forEach(p => { p.life -= 1; p.r += 0.25; p.y -= 0.4; });
+      mount.puffs = mount.puffs.filter(p => p.life > 0);
+    }
+  }
 
   // Camera follows player smoothly
   const targetCamX = player.x - W/2;
@@ -423,6 +628,153 @@ function update(dt) {
       showMessage("🍄 Glowing mushroom!", 900);
     }
   });
+
+  // MEGA TREASURE — only revealed after collecting enough things
+  megaTreasure.spin += 0.04;
+  megaTreasure.pulse += 0.06;
+  if (!megaTreasure.revealed
+      && scoreSparkles >= REQ_SPARKLES
+      && scoreMush >= REQ_MUSHROOMS
+      && scoreTreas >= REQ_TREASURES) {
+    megaTreasure.revealed = true;
+    treasureSound();
+    setTimeout(treasureSound, 200);
+    showMessage("✨ You unlocked the LEGENDARY TREASURE! ✨\nFollow the golden arrow to find it! 👑", 3500);
+  }
+  if (megaTreasure.revealed && !megaTreasure.collected && dist(megaTreasure, player) < player.r + 28) {
+    megaTreasure.collected = true;
+    treasureSound();
+    setTimeout(treasureSound, 200);
+    setTimeout(treasureSound, 400);
+    showMessage("👑 You found the LEGENDARY treasure! 👑\n⚠️ A giant dragon appears! ⚠️\nPress SPACE to throw sparkles!", 3500);
+    // spawn the boss dragon nearby
+    bossDragon = {
+      x: megaTreasure.x - 120,
+      y: megaTreasure.y + 60,
+      hp: 8,
+      maxHp: 8,
+      flapPhase: 0,
+      moveAngle: 0,
+      shootCooldown: 1500,
+      hitFlash: 0,
+      knockback: { x: 0, y: 0 },
+      angerPhase: 0,
+    };
+    bossActive = true;
+  }
+
+  // Boss dragon update
+  if (bossActive && bossDragon && !bossDefeated) {
+    const b = bossDragon;
+    b.flapPhase += 0.18;
+    b.angerPhase += 0.1;
+    if (b.hitFlash > 0) b.hitFlash -= dt;
+    // chase the player slowly
+    const dxp = player.x - b.x, dyp = player.y - b.y;
+    const dp = Math.hypot(dxp, dyp) || 1;
+    const speed = 1.4;
+    b.x += (dxp / dp) * speed + b.knockback.x;
+    b.y += (dyp / dp) * speed + b.knockback.y;
+    b.knockback.x *= 0.8;
+    b.knockback.y *= 0.8;
+    // shoot bubbles at the player
+    b.shootCooldown -= dt;
+    if (b.shootCooldown <= 0) {
+      b.shootCooldown = 1400;
+      const ang = Math.atan2(player.y - b.y, player.x - b.x);
+      // 3-bubble spread
+      for (let k = -1; k <= 1; k++) {
+        const a = ang + k * 0.18;
+        bossBubbles.push({
+          x: b.x, y: b.y,
+          vx: Math.cos(a) * 4,
+          vy: Math.sin(a) * 4,
+          life: 240,
+        });
+      }
+      playTone(180, 0.18, 'sawtooth', 0.10);
+    }
+  }
+
+  // Player invulnerability tick
+  if (playerInvuln > 0) playerInvuln -= dt;
+
+  // Player shoots sparkles toward boss when SPACE pressed
+  if (shootCooldown > 0) shootCooldown -= dt;
+  // safety cap so the array can never blow up
+  if (playerSparkles.length > 30) playerSparkles.splice(0, playerSparkles.length - 30);
+  if (bossBubbles.length > 30) bossBubbles.splice(0, bossBubbles.length - 30);
+  if (keys[' '] && shootCooldown <= 0 && bossActive && !bossDefeated && bossDragon) {
+    shootCooldown = 250;
+    const ang = Math.atan2(bossDragon.y - player.y, bossDragon.x - player.x);
+    playerSparkles.push({
+      x: player.x, y: player.y,
+      vx: Math.cos(ang) * 7,
+      vy: Math.sin(ang) * 7,
+      life: 120,
+      phase: 0,
+    });
+    playTone(1200, 0.08, 'triangle', 0.14);
+  }
+
+  // Update player sparkle projectiles
+  for (let i = playerSparkles.length - 1; i >= 0; i--) {
+    const p = playerSparkles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life -= 1;
+    p.phase += 0.4;
+    if (bossActive && bossDragon && !bossDefeated && dist(p, bossDragon) < 40) {
+      bossDragon.hp -= 1;
+      bossDragon.hitFlash = 200;
+      // knockback
+      const ang = Math.atan2(bossDragon.y - player.y, bossDragon.x - player.x);
+      bossDragon.knockback.x = Math.cos(ang) * 8;
+      bossDragon.knockback.y = Math.sin(ang) * 8;
+      playerSparkles.splice(i, 1);
+      playTone(900, 0.12, 'square', 0.16);
+      if (bossDragon.hp <= 0) {
+        bossDefeated = true;
+        bossActive = false;
+        treasureSound();
+        setTimeout(()=>treasureSound(), 250);
+        setTimeout(()=>treasureSound(), 500);
+        showMessage("🎉 YOU DEFEATED THE GIANT DRAGON! 🎉\n💖 The dragon is now your friend! 💖\nYou are the FOREST HERO, Camilla! 🏆", 6000);
+        playerHearts = MAX_HEARTS;  // full heal
+      }
+      continue;
+    }
+    if (p.life <= 0) playerSparkles.splice(i, 1);
+  }
+
+  // Update boss bubble projectiles
+  for (let i = bossBubbles.length - 1; i >= 0; i--) {
+    const b = bossBubbles[i];
+    b.x += b.vx;
+    b.y += b.vy;
+    b.life -= 1;
+    if (playerInvuln <= 0 && dist(b, player) < player.r + 8) {
+      playerHearts -= 1;
+      playerInvuln = 1200;
+      bossBubbles.splice(i, 1);
+      playTone(220, 0.18, 'sawtooth', 0.14);
+      if (playerHearts <= 0) {
+        // teleport back to the starting spawn point
+        playerHearts = MAX_HEARTS;
+        playerInvuln = 2000;  // brief safety after respawn
+        player.x = PX;
+        player.y = PY;
+        // clear all projectiles so she's safe right after respawn
+        bossBubbles.length = 0;
+        playerSparkles.length = 0;
+        showMessage("💖 The fairies brought you back to the start! 💖\nTry again, brave Camilla!", 2400);
+        // IMPORTANT: stop iterating — the array we were looping over is now empty
+        break;
+      }
+      continue;
+    }
+    if (b.life <= 0) bossBubbles.splice(i, 1);
+  }
 
   // Treasures
   treasures.forEach(t => {
@@ -533,6 +885,36 @@ function update(dt) {
       const g = p.greetings[randInt(0, p.greetings.length - 1)];
       showMessage(g, 2400);
       fairySound();
+    }
+  });
+
+  // Signposts — point arrow toward the nearest uncollected treasure.
+  // Once the legendary treasure is revealed, signs point at it!
+  signs.forEach(s => {
+    s.wobble += 0.04;
+    let nearest = null, nd = Infinity;
+    if (megaTreasure.revealed && !megaTreasure.collected) {
+      nearest = megaTreasure;
+      nd = dist(s, megaTreasure);
+      s.pointingMega = true;
+    } else {
+      s.pointingMega = false;
+      treasures.forEach(t => {
+        if (t.collected) return;
+        const d = dist(s, t);
+        if (d < nd) { nd = d; nearest = t; }
+      });
+    }
+    if (nearest) {
+      const targetAngle = Math.atan2(nearest.y - s.y, nearest.x - s.x);
+      let diff = targetAngle - s.angle;
+      while (diff > Math.PI) diff -= Math.PI * 2;
+      while (diff < -Math.PI) diff += Math.PI * 2;
+      s.angle += diff * 0.1;
+      s.targetTreasure = nearest;
+      s.distance = nd;
+    } else {
+      s.targetTreasure = null;
     }
   });
 
@@ -779,6 +1161,491 @@ function drawFairies() {
     // hair
     ctx.fillStyle = '#a0522d';
     ctx.beginPath(); ctx.arc(sx, sy + bob - 9, 3, 0, Math.PI*2); ctx.fill();
+  });
+}
+
+function drawMegaTreasure() {
+  if (megaTreasure.collected) return;
+  if (!megaTreasure.revealed) return;     // hidden until requirements met
+  // bigger inView range so the light beam draws even when off-screen
+  if (!inView(megaTreasure.x, megaTreasure.y, 800)) return;
+  const [sx, sy] = worldToScreen(megaTreasure.x, megaTreasure.y);
+
+  // tall beam of golden light shooting up to the sky — visible from far away!
+  const beamGrad = ctx.createLinearGradient(sx, sy - 600, sx, sy);
+  beamGrad.addColorStop(0, 'rgba(255,215,0,0)');
+  beamGrad.addColorStop(0.7, 'rgba(255,215,0,0.35)');
+  beamGrad.addColorStop(1, 'rgba(255,215,0,0.6)');
+  ctx.fillStyle = beamGrad;
+  const beamWidth = 24 + Math.sin(megaTreasure.pulse) * 4;
+  ctx.beginPath();
+  ctx.moveTo(sx - beamWidth, sy);
+  ctx.lineTo(sx + beamWidth, sy);
+  ctx.lineTo(sx + 4, sy - 600);
+  ctx.lineTo(sx - 4, sy - 600);
+  ctx.closePath();
+  ctx.fill();
+  // floating "TREASURE" word above
+  ctx.fillStyle = '#ffd700';
+  ctx.font = 'bold 22px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = '#000';
+  ctx.shadowBlur = 8;
+  ctx.fillText('★ LEGENDARY TREASURE ★', sx, sy - 80);
+  ctx.shadowBlur = 0;
+
+  const pulse = 1 + Math.sin(megaTreasure.pulse) * 0.15;
+  // huge magical glow
+  const grad = ctx.createRadialGradient(sx, sy, 0, sx, sy, 100 * pulse);
+  grad.addColorStop(0, 'rgba(255,215,0,0.7)');
+  grad.addColorStop(0.5, 'rgba(255,160,255,0.35)');
+  grad.addColorStop(1, 'rgba(255,160,255,0)');
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.arc(sx, sy, 100 * pulse, 0, Math.PI*2); ctx.fill();
+
+  // chest base
+  ctx.save();
+  ctx.translate(sx, sy);
+  ctx.scale(pulse, pulse);
+  // chest body
+  ctx.fillStyle = '#8a5a2a';
+  ctx.fillRect(-26, -6, 52, 28);
+  // chest lid
+  ctx.fillStyle = '#a87038';
+  ctx.beginPath();
+  ctx.moveTo(-28, -6);
+  ctx.lineTo(28, -6);
+  ctx.lineTo(22, -22);
+  ctx.lineTo(-22, -22);
+  ctx.closePath();
+  ctx.fill();
+  // gold bands
+  ctx.fillStyle = '#ffd700';
+  ctx.fillRect(-28, -8, 56, 3);
+  ctx.fillRect(-28, 18, 56, 3);
+  // lock
+  ctx.fillStyle = '#ffd700';
+  ctx.fillRect(-4, -2, 8, 8);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(-1, 0, 2, 4);
+
+  // crown floating above
+  ctx.translate(0, -36);
+  ctx.fillStyle = '#ffd700';
+  ctx.beginPath();
+  ctx.moveTo(-14, 6);
+  ctx.lineTo(-12, -8);
+  ctx.lineTo(-7, 2);
+  ctx.lineTo(-3, -10);
+  ctx.lineTo(0, 2);
+  ctx.lineTo(3, -10);
+  ctx.lineTo(7, 2);
+  ctx.lineTo(12, -8);
+  ctx.lineTo(14, 6);
+  ctx.closePath();
+  ctx.fill();
+  // crown gems
+  ctx.fillStyle = '#ff5fc6';
+  ctx.beginPath(); ctx.arc(-3, -5, 2, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(3, -5, 2, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#5fa8ff';
+  ctx.beginPath(); ctx.arc(0, -3, 2.4, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  // floating sparkles around it
+  for (let i = 0; i < 8; i++) {
+    const a = (megaTreasure.spin + i * Math.PI/4);
+    const r = 50 + Math.sin(megaTreasure.pulse + i) * 10;
+    const px = sx + Math.cos(a) * r;
+    const py = sy + Math.sin(a) * r;
+    ctx.fillStyle = i % 2 === 0 ? '#fff5a0' : '#ffd6f5';
+    ctx.beginPath();
+    ctx.arc(px, py, 2.5, 0, Math.PI*2);
+    ctx.fill();
+  }
+}
+
+function drawBossDragon() {
+  if (!bossActive || !bossDragon) return;
+  const b = bossDragon;
+  if (!inView(b.x, b.y, 200)) {
+    // off-screen indicator: arrow at edge of screen
+    const [bsx, bsy] = worldToScreen(b.x, b.y);
+    const ang = Math.atan2(bsy - H/2, bsx - W/2);
+    const ix = W/2 + Math.cos(ang) * Math.min(W/2 - 30, H/2 - 30);
+    const iy = H/2 + Math.sin(ang) * Math.min(W/2 - 30, H/2 - 30);
+    ctx.save();
+    ctx.translate(ix, iy);
+    ctx.rotate(ang);
+    ctx.fillStyle = '#ff3a3a';
+    ctx.beginPath();
+    ctx.moveTo(0, 0); ctx.lineTo(-20, -10); ctx.lineTo(-20, 10);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+    return;
+  }
+  const [sx, sy] = worldToScreen(b.x, b.y);
+  const flap = Math.sin(b.flapPhase) * 8;
+  const f = b.x > player.x ? -1 : 1;
+  const SCALE = 3.2;
+  const flash = b.hitFlash > 0;
+
+  // shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.beginPath(); ctx.ellipse(sx, sy + 50, 60, 14, 0, 0, Math.PI*2); ctx.fill();
+
+  // wings (back layer) — HUGE
+  ctx.fillStyle = flash ? '#ffffff' : '#3a1a4a';
+  ctx.beginPath();
+  ctx.ellipse(sx - 20, sy - 30 + flap, 36, 22, -0.4, 0, Math.PI*2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(sx + 20, sy - 30 - flap, 36, 22, 0.4, 0, Math.PI*2);
+  ctx.fill();
+
+  // body
+  ctx.fillStyle = flash ? '#ffffff' : '#5a2a8a';
+  ctx.beginPath();
+  ctx.ellipse(sx, sy + 8, 14*SCALE, 11*SCALE, 0, 0, Math.PI*2);
+  ctx.fill();
+  // belly
+  ctx.fillStyle = flash ? '#ffffff' : '#ffaa3a';
+  ctx.beginPath();
+  ctx.ellipse(sx, sy + 16, 8*SCALE, 6*SCALE, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // head
+  ctx.fillStyle = flash ? '#ffffff' : '#5a2a8a';
+  ctx.beginPath();
+  ctx.arc(sx + f*30, sy - 18, 22, 0, Math.PI*2);
+  ctx.fill();
+  // snout
+  ctx.beginPath();
+  ctx.ellipse(sx + f*48, sy - 12, 14, 9, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // big horns
+  ctx.fillStyle = '#fff5cc';
+  ctx.beginPath();
+  ctx.moveTo(sx + f*18, sy - 36);
+  ctx.lineTo(sx + f*22, sy - 36);
+  ctx.lineTo(sx + f*20, sy - 50);
+  ctx.closePath(); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(sx + f*32, sy - 38);
+  ctx.lineTo(sx + f*36, sy - 38);
+  ctx.lineTo(sx + f*38, sy - 54);
+  ctx.closePath(); ctx.fill();
+
+  // glowing red eye (a little fierce but cute)
+  const eyeGlow = ctx.createRadialGradient(sx + f*30, sy - 20, 0, sx + f*30, sy - 20, 10);
+  eyeGlow.addColorStop(0, '#ff8080');
+  eyeGlow.addColorStop(1, '#ff000000');
+  ctx.fillStyle = eyeGlow;
+  ctx.beginPath(); ctx.arc(sx + f*30, sy - 20, 10, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(sx + f*32, sy - 20, 5, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#000';
+  ctx.beginPath(); ctx.arc(sx + f*34, sy - 20, 2.5, 0, Math.PI*2); ctx.fill();
+
+  // nostrils with smoke
+  ctx.fillStyle = '#000';
+  ctx.beginPath(); ctx.arc(sx + f*52, sy - 14, 1.6, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(sx + f*52, sy - 10, 1.6, 0, Math.PI*2); ctx.fill();
+
+  // back spikes
+  ctx.fillStyle = '#fff5cc';
+  for (let i = 0; i < 5; i++) {
+    ctx.beginPath();
+    ctx.moveTo(sx - 20 + i*10, sy - 4);
+    ctx.lineTo(sx - 16 + i*10, sy - 18);
+    ctx.lineTo(sx - 12 + i*10, sy - 4);
+    ctx.closePath(); ctx.fill();
+  }
+
+  // tail
+  ctx.strokeStyle = flash ? '#ffffff' : '#5a2a8a';
+  ctx.lineWidth = 14;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(sx - f*30, sy + 12);
+  ctx.quadraticCurveTo(sx - f*60, sy + 30, sx - f*70, sy + 4);
+  ctx.stroke();
+
+  // boss HP bar above the dragon
+  const hpW = 120, hpH = 10;
+  const hpX = sx - hpW/2, hpY = sy - 70;
+  ctx.fillStyle = '#000';
+  ctx.fillRect(hpX - 2, hpY - 2, hpW + 4, hpH + 4);
+  ctx.fillStyle = '#5a1a1a';
+  ctx.fillRect(hpX, hpY, hpW, hpH);
+  ctx.fillStyle = '#ff3a3a';
+  ctx.fillRect(hpX, hpY, hpW * (b.hp / b.maxHp), hpH);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 12px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🐉 BOSS DRAGON', sx, hpY - 10);
+}
+
+function drawProjectiles() {
+  // player sparkles
+  playerSparkles.forEach(p => {
+    const [sx, sy] = worldToScreen(p.x, p.y);
+    const grad = ctx.createRadialGradient(sx, sy, 0, sx, sy, 14);
+    grad.addColorStop(0, '#fff5a0');
+    grad.addColorStop(1, 'rgba(255,245,160,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(sx, sy, 14, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2 + p.phase;
+      const r = i % 2 === 0 ? 6 : 2.5;
+      const px = sx + Math.cos(a) * r;
+      const py = sy + Math.sin(a) * r;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath(); ctx.fill();
+  });
+  // boss bubbles
+  bossBubbles.forEach(b => {
+    const [sx, sy] = worldToScreen(b.x, b.y);
+    ctx.fillStyle = 'rgba(120, 60, 180, 0.55)';
+    ctx.beginPath(); ctx.arc(sx, sy, 11, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#3a0a4a';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(sx - 3, sy - 3, 2.5, 0, Math.PI*2); ctx.fill();
+  });
+}
+
+function drawCompass() {
+  // Always point to the legendary treasure (or the boss while it's alive)
+  let target = null;
+  let label = '';
+  let color = '#ffd700';
+  if (bossActive && bossDragon) {
+    target = bossDragon;
+    label = '🐉 BOSS';
+    color = '#ff3a3a';
+  } else if (megaTreasure.revealed && !megaTreasure.collected) {
+    target = megaTreasure;
+    label = '👑 LEGENDARY TREASURE';
+    color = '#ffd700';
+  }
+  if (!target) return;
+
+  // If target is on screen, no compass needed
+  const [tsx, tsy] = worldToScreen(target.x, target.y);
+  if (tsx > 60 && tsx < W - 60 && tsy > 60 && tsy < H - 60) return;
+
+  // Draw arrow at edge of screen pointing toward target
+  const cx = W/2, cy = H/2;
+  const ang = Math.atan2(target.y - player.y, target.x - player.x);
+  const radius = Math.min(W/2 - 80, H/2 - 80);
+  const ax = cx + Math.cos(ang) * radius;
+  const ay = cy + Math.sin(ang) * radius;
+
+  // pulse
+  const pulse = 1 + Math.sin(megaTreasure.pulse) * 0.15;
+
+  ctx.save();
+  ctx.translate(ax, ay);
+  ctx.rotate(ang);
+  ctx.scale(pulse, pulse);
+  // arrow shape
+  ctx.fillStyle = color;
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(35, 0);
+  ctx.lineTo(0, -22);
+  ctx.lineTo(8, -10);
+  ctx.lineTo(-30, -10);
+  ctx.lineTo(-30, 10);
+  ctx.lineTo(8, 10);
+  ctx.lineTo(0, 22);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+
+  // label near arrow
+  ctx.fillStyle = '#000';
+  ctx.fillRect(ax - 110, ay + 30, 220, 24);
+  ctx.fillStyle = color;
+  ctx.font = 'bold 16px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label + ' →', ax, ay + 42);
+  // distance
+  const d = Math.round(dist(player, target) / 30);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 12px sans-serif';
+  ctx.fillText(d + ' steps away', ax, ay + 60);
+}
+
+function drawHearts() {
+  if (!bossActive && !bossDefeated) return;
+  // hearts in top-center
+  for (let i = 0; i < MAX_HEARTS; i++) {
+    const hx = W/2 - (MAX_HEARTS * 30) / 2 + i * 30 + 15;
+    const hy = 30;
+    const filled = i < playerHearts;
+    ctx.fillStyle = filled ? '#ff3a6f' : 'rgba(80,30,50,0.6)';
+    ctx.beginPath();
+    ctx.arc(hx - 5, hy - 2, 6, 0, Math.PI*2);
+    ctx.arc(hx + 5, hy - 2, 6, 0, Math.PI*2);
+    ctx.moveTo(hx - 11, hy);
+    ctx.lineTo(hx, hy + 12);
+    ctx.lineTo(hx + 11, hy);
+    ctx.closePath();
+    ctx.fill();
+    if (filled) {
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.beginPath(); ctx.arc(hx - 5, hy - 3, 1.6, 0, Math.PI*2); ctx.fill();
+    }
+  }
+}
+
+function drawSigns() {
+  signs.forEach(s => {
+    if (!inView(s.x, s.y, 60)) return;
+    const [sx, sy] = worldToScreen(s.x, s.y);
+    const wob = Math.sin(s.wobble) * 0.04;
+
+    // shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.beginPath(); ctx.ellipse(sx, sy + 16, 10, 3, 0, 0, Math.PI*2); ctx.fill();
+
+    // wooden post
+    ctx.fillStyle = '#7a4a1a';
+    ctx.fillRect(sx - 2.5, sy - 8, 5, 24);
+    // post wood grain
+    ctx.strokeStyle = '#5a3010';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(sx - 1, sy - 6); ctx.lineTo(sx - 1, sy + 14);
+    ctx.moveTo(sx + 1, sy - 4); ctx.lineTo(sx + 1, sy + 12);
+    ctx.stroke();
+
+    if (!s.targetTreasure) {
+      // No target — show what's missing for the legendary treasure
+      let signText = '★';
+      let signColor = '#ffd700';
+      if (!megaTreasure.revealed) {
+        // tell her what's still needed
+        const needSp = Math.max(0, REQ_SPARKLES - scoreSparkles);
+        const needMu = Math.max(0, REQ_MUSHROOMS - scoreMush);
+        const needTr = Math.max(0, REQ_TREASURES - scoreTreas);
+        if (needSp > 0) signText = '✨ ' + needSp;
+        else if (needMu > 0) signText = '🍄 ' + needMu;
+        else if (needTr > 0) signText = '💎 ' + needTr;
+        signColor = '#a87038';
+      } else if (megaTreasure.collected) {
+        // celebration after winning
+        signText = '🏆';
+      }
+      // wooden sign background
+      ctx.fillStyle = signColor;
+      ctx.strokeStyle = '#5a3010';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(sx - 22, sy - 22);
+      ctx.lineTo(sx + 22, sy - 22);
+      ctx.lineTo(sx + 22, sy - 6);
+      ctx.lineTo(sx - 22, sy - 6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#000';
+      ctx.font = 'bold 13px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(signText, sx, sy - 14);
+      return;
+    }
+
+    // arrow sign pointing toward treasure
+    ctx.save();
+    ctx.translate(sx, sy - 14);
+    ctx.rotate(s.angle + wob);
+
+    // arrow-shaped wooden sign (points right by default, then rotated)
+    ctx.fillStyle = '#a87038';
+    ctx.beginPath();
+    ctx.moveTo(-14, -8);
+    ctx.lineTo(8, -8);
+    ctx.lineTo(16, 0);
+    ctx.lineTo(8, 8);
+    ctx.lineTo(-14, 8);
+    ctx.closePath();
+    ctx.fill();
+
+    // sign border
+    ctx.strokeStyle = '#5a3010';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    // wood grain on sign
+    ctx.strokeStyle = '#7a4a1a';
+    ctx.lineWidth = 0.6;
+    ctx.beginPath();
+    ctx.moveTo(-12, -3); ctx.lineTo(12, -3);
+    ctx.moveTo(-12, 3);  ctx.lineTo(10, 3);
+    ctx.stroke();
+
+    // gem sparkle on sign (so kids know it points to treasure)
+    // gold crown if pointing to MEGA treasure, pink gem otherwise
+    if (s.pointingMega) {
+      ctx.fillStyle = '#ffd700';
+      ctx.beginPath();
+      ctx.moveTo(-5, 4);
+      ctx.lineTo(-5, -2);
+      ctx.lineTo(-3, 1);
+      ctx.lineTo(-1, -3);
+      ctx.lineTo(1, 1);
+      ctx.lineTo(3, -2);
+      ctx.lineTo(5, 1);
+      ctx.lineTo(5, 4);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      ctx.fillStyle = '#ff5fc6';
+      ctx.beginPath();
+      ctx.moveTo(-2, -4);
+      ctx.lineTo(3, -4);
+      ctx.lineTo(5, 0);
+      ctx.lineTo(3, 4);
+      ctx.lineTo(-2, 4);
+      ctx.lineTo(-4, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#ffd6f5';
+      ctx.beginPath();
+      ctx.moveTo(-1, -3);
+      ctx.lineTo(1, -3);
+      ctx.lineTo(0, -1);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    ctx.restore();
+
+    // distance label below post
+    if (s.distance) {
+      const steps = Math.round(s.distance / 30);
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(sx - 18, sy + 18, 36, 12);
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${steps} steps`, sx, sy + 24);
+    }
   });
 }
 
@@ -1166,12 +2033,138 @@ function drawPeople() {
   sorted.forEach(drawPerson);
 }
 
-function drawPlayer() {
-  const [sx, sy] = worldToScreen(player.x, player.y);
-  const bob = Math.sin(player.walkPhase) * 1.5;
+function drawMount() {
+  if (!mount) return;
+  if (mount.kind === 'unicorn') {
+    drawUnicorn(mount);
+  } else if (mount.kind === 'dragon') {
+    drawDragon(mount);
+  } else if (mount.kind === 'boss_dragon') {
+    drawBossMount(mount);
+  }
+}
+
+// Big friendly version of the boss dragon — same look but happy eyes, no HP bar.
+function drawBossMount(m) {
+  const [sx, sy] = worldToScreen(m.x, m.y);
+  const flap = Math.sin(m.flapPhase) * 8;
+  const f = m.facing;
+
   // shadow
-  ctx.fillStyle = 'rgba(0,0,0,0.35)';
-  ctx.beginPath(); ctx.ellipse(sx, sy + 18, 14, 5, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.beginPath(); ctx.ellipse(sx, sy + 50, 60, 14, 0, 0, Math.PI*2); ctx.fill();
+
+  // smoke puffs
+  m.puffs.forEach(p => {
+    const [psx, psy] = worldToScreen(p.x, p.y);
+    ctx.fillStyle = `rgba(220, 220, 230, ${p.life / 60 * 0.7})`;
+    ctx.beginPath();
+    ctx.arc(psx, psy, p.r, 0, Math.PI*2);
+    ctx.fill();
+  });
+
+  // wings (back)
+  ctx.fillStyle = '#3a1a4a';
+  ctx.beginPath(); ctx.ellipse(sx - 20, sy - 30 + flap, 36, 22, -0.4, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(sx + 20, sy - 30 - flap, 36, 22, 0.4, 0, Math.PI*2); ctx.fill();
+
+  // body
+  ctx.fillStyle = '#5a2a8a';
+  ctx.beginPath();
+  ctx.ellipse(sx, sy + 8, 14*3.2, 11*3.2, 0, 0, Math.PI*2);
+  ctx.fill();
+  // belly
+  ctx.fillStyle = '#ffaa3a';
+  ctx.beginPath();
+  ctx.ellipse(sx, sy + 16, 8*3.2, 6*3.2, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // head
+  ctx.fillStyle = '#5a2a8a';
+  ctx.beginPath();
+  ctx.arc(sx + f*30, sy - 18, 22, 0, Math.PI*2);
+  ctx.fill();
+  // snout
+  ctx.beginPath();
+  ctx.ellipse(sx + f*48, sy - 12, 14, 9, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // big horns
+  ctx.fillStyle = '#fff5cc';
+  ctx.beginPath();
+  ctx.moveTo(sx + f*18, sy - 36);
+  ctx.lineTo(sx + f*22, sy - 36);
+  ctx.lineTo(sx + f*20, sy - 50);
+  ctx.closePath(); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(sx + f*32, sy - 38);
+  ctx.lineTo(sx + f*36, sy - 38);
+  ctx.lineTo(sx + f*38, sy - 54);
+  ctx.closePath(); ctx.fill();
+
+  // FRIENDLY happy eyes (no longer red) — big and cute
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(sx + f*30, sy - 20, 7, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#000';
+  ctx.beginPath(); ctx.arc(sx + f*32, sy - 19, 4, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(sx + f*33, sy - 20, 1.5, 0, Math.PI*2); ctx.fill();
+  // little heart above the head — tamed!
+  ctx.fillStyle = '#ff5fc6';
+  ctx.beginPath();
+  ctx.arc(sx + f*28, sy - 56, 3, 0, Math.PI*2);
+  ctx.arc(sx + f*34, sy - 56, 3, 0, Math.PI*2);
+  ctx.moveTo(sx + f*23, sy - 54);
+  ctx.lineTo(sx + f*31, sy - 46);
+  ctx.lineTo(sx + f*39, sy - 54);
+  ctx.closePath();
+  ctx.fill();
+
+  // happy smile (mouth curve)
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(sx + f*44, sy - 8, 6, 0.2, Math.PI - 0.2);
+  ctx.stroke();
+
+  // back spikes
+  ctx.fillStyle = '#fff5cc';
+  for (let i = 0; i < 5; i++) {
+    ctx.beginPath();
+    ctx.moveTo(sx - 20 + i*10, sy - 4);
+    ctx.lineTo(sx - 16 + i*10, sy - 18);
+    ctx.lineTo(sx - 12 + i*10, sy - 4);
+    ctx.closePath(); ctx.fill();
+  }
+
+  // tail
+  ctx.strokeStyle = '#5a2a8a';
+  ctx.lineWidth = 14;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(sx - f*30, sy + 12);
+  ctx.quadraticCurveTo(sx - f*60, sy + 30, sx - f*70, sy + 4);
+  ctx.stroke();
+}
+
+function drawPlayer() {
+  // blink while invulnerable
+  if (playerInvuln > 0 && Math.floor(playerInvuln / 80) % 2 === 0) return;
+  const [sx0, sy0] = worldToScreen(player.x, player.y);
+  // when riding, the player sits HIGHER (on top of the creature)
+  const rideLift = mount
+    ? (mount.kind === 'unicorn' ? -16
+      : mount.kind === 'dragon' ? -22
+      : -50)  // boss_dragon — sit way up high!
+    : 0;
+  const sx = sx0;
+  const sy = sy0 + rideLift;
+  const bob = mount ? 0 : Math.sin(player.walkPhase) * 1.5;
+  // shadow (only when on foot)
+  if (!mount) {
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.beginPath(); ctx.ellipse(sx0, sy0 + 18, 14, 5, 0, 0, Math.PI*2); ctx.fill();
+  }
   // legs
   ctx.fillStyle = '#5a3a90';
   ctx.fillRect(sx - 7, sy + 8 - bob, 5, 10);
@@ -1258,6 +2251,42 @@ function drawMinimap() {
     const dy = my + (d.y / WORLD_H) * mh;
     ctx.beginPath(); ctx.arc(dx, dy, 2, 0, Math.PI*2); ctx.fill();
   });
+  // signposts on minimap (little brown squares)
+  ctx.fillStyle = '#a87038';
+  signs.forEach(s => {
+    const sx2 = mx + (s.x / WORLD_W) * mw;
+    const sy2 = my + (s.y / WORLD_H) * mh;
+    ctx.fillRect(sx2 - 1.5, sy2 - 1.5, 3, 3);
+  });
+  // MEGA TREASURE on minimap — only visible once revealed
+  if (megaTreasure.revealed && !megaTreasure.collected) {
+    const mtx = mx + (megaTreasure.x / WORLD_W) * mw;
+    const mty = my + (megaTreasure.y / WORLD_H) * mh;
+    const pulse = 1 + Math.sin(megaTreasure.pulse) * 0.5;
+    // BIG glow halo
+    const grad = ctx.createRadialGradient(mtx, mty, 0, mtx, mty, 22 * pulse);
+    grad.addColorStop(0, '#ffd700');
+    grad.addColorStop(0.5, 'rgba(255,215,0,0.6)');
+    grad.addColorStop(1, 'rgba(255,215,0,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(mtx, mty, 22 * pulse, 0, Math.PI*2); ctx.fill();
+    // emoji crown — way more recognizable for a kid!
+    ctx.fillStyle = '#000';
+    ctx.font = 'bold 18px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('👑', mtx, mty);
+  }
+  // Boss dragon on minimap (big red dot) when active
+  if (bossActive && bossDragon) {
+    const bx = mx + (bossDragon.x / WORLD_W) * mw;
+    const by = my + (bossDragon.y / WORLD_H) * mh;
+    ctx.fillStyle = '#ff3a3a';
+    ctx.beginPath(); ctx.arc(bx, by, 4, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
 }
 
 function draw() {
@@ -1271,15 +2300,26 @@ function draw() {
   drawUnicorns();
   drawDragons();
   drawPeople();
+  drawSigns();
+  drawMegaTreasure();
+  drawBossDragon();
   drawTrees();   // trees on top so player walks "through" them
+  drawMount();
   drawPlayer();
+  // player flashes when invulnerable (hit by boss)
+  drawProjectiles();
+  drawCompass();
+  drawHearts();
   drawMinimap();
 }
 
 // ----- Main loop -----
 let lastTime = performance.now();
 function loop(now) {
-  const dt = now - lastTime;
+  // Clamp dt so a paused/backgrounded tab doesn't dump a huge time jump
+  // into all the cooldowns at once (which causes burst-fire and "freezing").
+  const rawDt = now - lastTime;
+  const dt = Math.min(rawDt, 50);
   lastTime = now;
   update(dt);
   draw();
