@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Opposite Day!</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #1a0033;
+    overflow: hidden;
+    font-family: "Comic Sans MS", "Trebuchet MS", sans-serif;
+  }
+  canvas {
+    display: block;
+    margin: 0 auto;
+    background: #cdfaff;
+  }
+  #title {
+    position: fixed;
+    top: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #fff;
+    font-size: 22px;
+    text-shadow: 2px 2px 0 #ff5fc6, 4px 4px 0 #2a0040;
+    pointer-events: none;
+    letter-spacing: 1px;
+  }
+  #level-name {
+    position: fixed;
+    top: 14px;
+    left: 14px;
+    color: #4a0033;
+    font-size: 20px;
+    font-weight: bold;
+    text-shadow: 2px 2px 0 #fff;
+    background: rgba(255,255,255,0.85);
+    padding: 4px 12px;
+    border-radius: 10px;
+    border: 2px solid #ff5fc6;
+    pointer-events: none;
+  }
+  #sign {
+    position: fixed;
+    top: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(#fff5cc, #ffe14c);
+    color: #4a0033;
+    border: 4px solid #c47a00;
+    border-radius: 16px;
+    padding: 12px 24px;
+    font-size: 24px;
+    font-weight: bold;
+    text-align: center;
+    box-shadow: 0 4px 0 #80005a;
+    pointer-events: none;
+    max-width: 80%;
+  }
+  #hint {
+    position: fixed;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #fff;
+    font-size: 18px;
+    background: rgba(40,0,60,0.7);
+    padding: 8px 18px;
+    border-radius: 14px;
+    pointer-events: none;
+    border: 2px solid #ff5fc6;
+  }
+  #overlay {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(40, 0, 60, 0.94);
+    color: #fff;
+    border: 4px solid #ff5fc6;
+    border-radius: 22px;
+    padding: 22px 30px;
+    text-align: center;
+    pointer-events: auto;
+    box-shadow: 0 8px 0 #80005a;
+    max-width: 80%;
+  }
+  #overlay h2 {
+    margin: 0 0 8px;
+    font-size: 30px;
+    text-shadow: 2px 2px 0 #2a0040;
+  }
+  #overlay p {
+    margin: 6px 0;
+    font-size: 18px;
+    line-height: 1.4;
+  }
+  #overlay button {
+    margin-top: 10px;
+    background: linear-gradient(#ffd6f5, #ff8ed4);
+    color: #4a0033;
+    border: 3px solid #ff5fc6;
+    border-radius: 14px;
+    padding: 12px 30px;
+    font-family: inherit;
+    font-size: 24px;
+    cursor: pointer;
+    box-shadow: 2px 3px 0 #80005a;
+    text-shadow: 1px 1px 0 #ffe6f5;
+    font-weight: bold;
+  }
+  #overlay button:active { transform: translateY(2px); box-shadow: 0 1px 0 #80005a; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<canvas id="game" width="960" height="600"></canvas>
+<div id="title">🙃 OPPOSITE DAY 🙃</div>
+<div id="level-name">Level 1</div>
+<div id="sign">→ Go RIGHT to start the game! →</div>
+<div id="hint">🙃 Every sign LIES! Do the OPPOSITE of what it says! 🙃</div>
+
+<div id="overlay">
+  <h2 id="overlay-title">🙃 Welcome to Opposite Day! 🙃</h2>
+  <p>Every sign in this game is <b>LYING</b> to you!</p>
+  <p>Do the <b>OPPOSITE</b> of what every sign says.</p>
+  <p>Use the <b>arrow keys</b> to move your character.</p>
+  <button id="start-btn">START!</button>
+</div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const W = canvas.width;
+const H = canvas.height;
+
+const player = {
+  x: W/2, y: H/2,
+  r: 18, speed: 4,
+  facing: 1,
+  walkPhase: 0,
+};
+
+let levelIdx = 0;
+let level = null;     // current level state
+let started = false;
+let won = false;
+let levelTransitioning = false;
+const floats = [];    // floating text feedback popups
+
+function rand(a, b) { return Math.random() * (b - a) + a; }
+function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+
+// ----- Sound -----
+let audioCtx = null;
+function ensureAudio() {
+  if (!audioCtx) try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+}
+function tone(freq, dur=0.12, type='sine', vol=0.18) {
+  ensureAudio();
+  if (!audioCtx) return;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.value = vol;
+  g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+  o.connect(g).connect(audioCtx.destination);
+  o.start();
+  o.stop(audioCtx.currentTime + dur);
+}
+const sWin = () => { [523, 659, 784, 1047].forEach((f, i) => setTimeout(()=>tone(f, 0.18, 'triangle', 0.18), i*100)); };
+const sPop = () => { tone(880, 0.10, 'triangle', 0.14); };
+const sNope = () => { tone(220, 0.18, 'sawtooth', 0.16); setTimeout(()=>tone(170, 0.16, 'sawtooth', 0.14), 120); };
+
+// ----- Floating feedback text -----
+function floatMsg(text, x, y, color = '#ff3a6f') {
+  floats.push({ text, x, y, life: 1500, color });
+}
+function updateFloats(dt) {
+  for (let i = floats.length - 1; i >= 0; i--) {
+    floats[i].y -= 0.6;
+    floats[i].life -= dt;
+    if (floats[i].life <= 0) floats.splice(i, 1);
+  }
+}
+function drawFloats() {
+  floats.forEach(f => {
+    const alpha = Math.min(1, f.life / 1000);
+    ctx.globalAlpha = alpha;
+    ctx.font = 'bold 24px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = '#fff';
+    ctx.strokeText(f.text, f.x, f.y);
+    ctx.fillStyle = f.color;
+    ctx.fillText(f.text, f.x, f.y);
+    ctx.globalAlpha = 1;
+  });
+}
+
+// ----- Drawing helpers -----
+function drawDoor(d) {
+  // door body
+  ctx.fillStyle = d.color;
+  ctx.fillRect(d.x - 30, d.y - 50, 60, 100);
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(d.x - 30, d.y - 50, 60, 100);
+  // panel detail
+  ctx.strokeRect(d.x - 22, d.y - 42, 44, 38);
+  ctx.strokeRect(d.x - 22, d.y + 4, 44, 38);
+  // knob
+  ctx.fillStyle = '#ffd700';
+  ctx.beginPath(); ctx.arc(d.x + 18, d.y, 4, 0, Math.PI*2); ctx.fill();
+  // label above
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 18px sans-serif';
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 4;
+  ctx.textAlign = 'center';
+  ctx.strokeText(d.label, d.x, d.y - 60);
+  ctx.fillText(d.label, d.x, d.y - 60);
+}
+
+function drawCake(x, y) {
+  // plate
+  ctx.fillStyle = '#ddd';
+  ctx.beginPath();
+  ctx.ellipse(x, y + 18, 30, 6, 0, 0, Math.PI*2);
+  ctx.fill();
+  // cake base
+  ctx.fillStyle = '#8b4513';
+  ctx.fillRect(x - 22, y - 6, 44, 22);
+  // frosting (scalloped top)
+  ctx.fillStyle = '#ffb3d9';
+  ctx.beginPath();
+  ctx.moveTo(x - 22, y - 6);
+  for (let i = -22; i <= 22; i += 11) {
+    ctx.arc(x + i + 5.5, y - 6, 5.5, Math.PI, Math.PI * 2);
+  }
+  ctx.lineTo(x + 22, y - 6);
+  ctx.closePath();
+  ctx.fill();
+  // cherry
+  ctx.fillStyle = '#ff3a3a';
+  ctx.beginPath(); ctx.arc(x, y - 16, 4, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#3a8a3a';
+  ctx.fillRect(x - 1, y - 22, 2, 4);
+  // sprinkles
+  ctx.fillStyle = '#ffe14c';
+  ctx.fillRect(x - 14, y, 3, 1.5);
+  ctx.fillStyle = '#5fa8ff';
+  ctx.fillRect(x - 4, y + 4, 3, 1.5);
+  ctx.fillStyle = '#9b6cff';
+  ctx.fillRect(x + 8, y, 3, 1.5);
+}
+
+function drawCuteDragon(x, y) {
+  // body
+  ctx.fillStyle = '#5fd96b';
+  ctx.beginPath();
+  ctx.ellipse(x, y + 12, 36, 26, 0, 0, Math.PI*2);
+  ctx.fill();
+  // belly
+  ctx.fillStyle = '#fff5cc';
+  ctx.beginPath();
+  ctx.ellipse(x, y + 18, 18, 14, 0, 0, Math.PI*2);
+  ctx.fill();
+  // wings
+  ctx.fillStyle = '#3aaa4a';
+  ctx.beginPath(); ctx.ellipse(x - 28, y, 14, 18, -0.3, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(x + 28, y, 14, 18, 0.3, 0, Math.PI*2); ctx.fill();
+  // head
+  ctx.fillStyle = '#5fd96b';
+  ctx.beginPath();
+  ctx.arc(x, y - 22, 26, 0, Math.PI*2);
+  ctx.fill();
+  // big cute eyes
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(x - 9, y - 26, 7, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + 9, y - 26, 7, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#000';
+  ctx.beginPath(); ctx.arc(x - 9, y - 25, 4, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + 9, y - 25, 4, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(x - 7, y - 27, 1.5, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + 11, y - 27, 1.5, 0, Math.PI*2); ctx.fill();
+  // smile
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.arc(x, y - 16, 8, 0.2, Math.PI - 0.2);
+  ctx.stroke();
+  // little horns
+  ctx.fillStyle = '#fff5cc';
+  ctx.beginPath();
+  ctx.moveTo(x - 14, y - 42); ctx.lineTo(x - 9, y - 42); ctx.lineTo(x - 12, y - 52);
+  ctx.closePath(); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(x + 9, y - 42); ctx.lineTo(x + 14, y - 42); ctx.lineTo(x + 12, y - 52);
+  ctx.closePath(); ctx.fill();
+  // floating hearts above
+  ctx.fillStyle = '#ff5fc6';
+  ctx.beginPath();
+  ctx.arc(x - 4, y - 60, 4, 0, Math.PI*2);
+  ctx.arc(x + 4, y - 60, 4, 0, Math.PI*2);
+  ctx.moveTo(x - 8, y - 57);
+  ctx.lineTo(x, y - 48);
+  ctx.lineTo(x + 8, y - 57);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawStarShape(x, y, scale = 1) {
+  const r = 16 * scale;
+  ctx.fillStyle = '#fff5a0';
+  ctx.strokeStyle = '#c47a00';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2 - Math.PI / 2;
+    const rr = i % 2 === 0 ? r : r * 0.45;
+    const px = x + Math.cos(a) * rr;
+    const py = y + Math.sin(a) * rr;
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+}
+
+function drawBigArrow(x, y, dir) {
+  ctx.save();
+  ctx.translate(x, y);
+  if (dir === 'right') ctx.rotate(0);
+  if (dir === 'left') ctx.rotate(Math.PI);
+  if (dir === 'down') ctx.rotate(Math.PI/2);
+  if (dir === 'up') ctx.rotate(-Math.PI/2);
+  ctx.fillStyle = '#ff3a6f';
+  ctx.strokeStyle = '#80005a';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(60, 0);
+  ctx.lineTo(20, -32);
+  ctx.lineTo(20, -14);
+  ctx.lineTo(-40, -14);
+  ctx.lineTo(-40, 14);
+  ctx.lineTo(20, 14);
+  ctx.lineTo(20, 32);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawPlayer() {
+  const sx = player.x, sy = player.y;
+  const bob = Math.sin(player.walkPhase) * 1.5;
+  // shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath(); ctx.ellipse(sx, sy + 18, 14, 5, 0, 0, Math.PI*2); ctx.fill();
+  // legs
+  ctx.fillStyle = '#5a3a90';
+  ctx.fillRect(sx - 7, sy + 8 - bob, 5, 10);
+  ctx.fillRect(sx + 2, sy + 8 + bob, 5, 10);
+  // dress
+  ctx.fillStyle = '#ff5fa2';
+  ctx.beginPath();
+  ctx.moveTo(sx - 12, sy + 10); ctx.lineTo(sx + 12, sy + 10);
+  ctx.lineTo(sx + 8, sy - 6); ctx.lineTo(sx - 8, sy - 6);
+  ctx.closePath();
+  ctx.fill();
+  // arms
+  ctx.fillStyle = '#ffe0b2';
+  ctx.beginPath(); ctx.arc(sx - 10, sy, 3, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(sx + 10, sy, 3, 0, Math.PI*2); ctx.fill();
+  // head
+  ctx.fillStyle = '#ffe0b2';
+  ctx.beginPath(); ctx.arc(sx, sy - 12, 8, 0, Math.PI*2); ctx.fill();
+  // hair
+  ctx.fillStyle = '#a0522d';
+  ctx.beginPath(); ctx.arc(sx, sy - 16, 8, Math.PI, Math.PI*2); ctx.fill();
+  ctx.fillRect(sx - 8, sy - 16, 16, 4);
+  // eyes
+  ctx.fillStyle = '#000';
+  ctx.beginPath(); ctx.arc(sx - 3 + player.facing, sy - 12, 1.4, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(sx + 3 + player.facing, sy - 12, 1.4, 0, Math.PI*2); ctx.fill();
+  // smile
+  ctx.strokeStyle = '#000'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.arc(sx + player.facing*0.5, sy - 9, 2, 0.2, Math.PI - 0.2); ctx.stroke();
+  // crown
+  ctx.fillStyle = '#ffd700';
+  ctx.beginPath();
+  ctx.moveTo(sx - 5, sy - 19); ctx.lineTo(sx - 2, sy - 23);
+  ctx.lineTo(sx, sy - 19); ctx.lineTo(sx + 2, sy - 23);
+  ctx.lineTo(sx + 5, sy - 19);
+  ctx.closePath();
+  ctx.fill();
+}
+
+// ----- Levels -----
+const levels = [
+  // Level 1: START — sign points right but the START is on the LEFT
+  {
+    name: "Level 1: START!",
+    sign: "→ Go RIGHT to start the game! →",
+    bgColor: '#ffd6f5',
+    init() {
+      player.x = W/2; player.y = H/2;
+      level.doors = [
+        // LEFT door — labelled "NOT START" but actually IS the start (opposite!)
+        { x: 90, y: H/2, color: '#5fd96b', label: "🚫 NOT START 🚫", isGoal: true },
+        // RIGHT door — labelled "START HERE" but actually a trick
+        { x: W - 90, y: H/2, color: '#ff5fc6', label: "✅ START HERE ✅", isGoal: false }
+      ];
+      level.arrowPhase = 0;
+    },
+    update(dt) {
+      level.arrowPhase += 0.05;
+      for (const d of level.doors) {
+        if (Math.abs(player.x - d.x) < 32 && Math.abs(player.y - d.y) < 50) {
+          if (d.isGoal) { winLevel(); return; }
+          restartFromBeginning();
+          return;
+        }
+      }
+    },
+    draw() {
+      // big animated arrows pointing RIGHT (lying!)
+      const off = Math.sin(level.arrowPhase) * 8;
+      drawBigArrow(W/2 - 90 + off, H - 90, 'right');
+      drawBigArrow(W/2 + 90 + off, H - 90, 'right');
+      // doors
+      level.doors.forEach(drawDoor);
+    }
+  },
+
+  // Level 2: CAKES — sign says don't eat, eat them all
+  {
+    name: "Level 2: CAKES",
+    sign: "🍰 DO NOT EAT THE CAKES! 🚫",
+    bgColor: '#cdfaff',
+    init() {
+      player.x = W/2; player.y = H/2;
+      level.cakes = [
+        { x: 200, y: 220 },
+        { x: W - 200, y: 220 },
+        { x: 200, y: H - 180 },
+        { x: W - 200, y: H - 180 },
+      ];
+      // Trap door — touching it without eating all cakes = obeying the sign = restart!
+      level.trapDoor = { x: W/2, y: H - 80, color: '#ff5fc6', label: "✓ I DID NOT EAT! ✓", isGoal: false };
+    },
+    update() {
+      for (let i = level.cakes.length - 1; i >= 0; i--) {
+        const c = level.cakes[i];
+        if (dist(player, c) < player.r + 26) {
+          level.cakes.splice(i, 1);
+          floatMsg("Yum! 🍰", c.x, c.y - 30, '#ff5fc6');
+          sPop();
+          if (level.cakes.length === 0) winLevel();
+        }
+      }
+      // trap door check
+      const d = level.trapDoor;
+      if (Math.abs(player.x - d.x) < 32 && Math.abs(player.y - d.y) < 50) {
+        restartFromBeginning();
+      }
+    },
+    draw() {
+      level.cakes.forEach(c => drawCake(c.x, c.y));
+      drawDoor(level.trapDoor);
+    }
+  },
+
+  // Level 3: DRAGON — sign says run away, walk to it for a hug
+  {
+    name: "Level 3: DRAGON",
+    sign: "🐲 RUN AWAY FROM THE DRAGON! 🏃💨",
+    bgColor: '#bff5b5',
+    init() {
+      player.x = 100; player.y = H - 100;
+      level.dragon = { x: W/2, y: H/2 };
+      level.hugged = false;
+      // "ESCAPE" door at the far corner — running away = obeying = restart!
+      level.trapDoor = { x: W - 80, y: 230, color: '#ff5fc6', label: "🚪 ESCAPE! 🚪", isGoal: false };
+    },
+    update() {
+      if (!level.hugged && dist(player, level.dragon) < player.r + 36) {
+        level.hugged = true;
+        floatMsg("💖 Aww, hug! 💖", level.dragon.x, level.dragon.y - 70, '#ff5fc6');
+        sWin();
+        setTimeout(winLevel, 1500);
+      }
+      const d = level.trapDoor;
+      if (!level.hugged && Math.abs(player.x - d.x) < 32 && Math.abs(player.y - d.y) < 50) {
+        restartFromBeginning();
+      }
+    },
+    draw() {
+      drawCuteDragon(level.dragon.x, level.dragon.y);
+      drawDoor(level.trapDoor);
+    }
+  },
+
+  // Level 4: DOORS — sign says gold, pick silver
+  {
+    name: "Level 4: DOORS",
+    sign: "Walk through the GOLDEN door! ⭐",
+    bgColor: '#ffe6cc',
+    init() {
+      player.x = W/2; player.y = H - 100;
+      level.doors = [
+        { x: W/3, y: 230, color: '#ffd700', label: "🌟 GOLD 🌟", isGoal: false },
+        { x: 2*W/3, y: 230, color: '#aaaaaa', label: "🥈 SILVER 🥈", isGoal: true }
+      ];
+    },
+    update() {
+      for (const d of level.doors) {
+        if (Math.abs(player.x - d.x) < 32 && Math.abs(player.y - d.y) < 50) {
+          if (d.isGoal) { winLevel(); return; }
+          restartFromBeginning();
+          return;
+        }
+      }
+    },
+    draw() {
+      level.doors.forEach(drawDoor);
+    }
+  },
+
+  // Level 5: STARS — sign says don't catch, catch 5
+  {
+    name: "Level 5: STARS",
+    sign: "🌟 DO NOT CATCH THE FALLING STARS! 🚫",
+    bgColor: '#1a0033',
+    init() {
+      player.x = W/2; player.y = H - 60;
+      level.stars = [];
+      level.starsCaught = 0;
+      level.spawnTimer = 0;
+      level.starsTarget = 5;
+      // trap door — touching it = obeying = restart!
+      level.trapDoor = { x: 80, y: H/2, color: '#ff5fc6', label: "🛑 STOP! 🛑", isGoal: false };
+    },
+    update(dt) {
+      level.spawnTimer -= dt;
+      if (level.spawnTimer <= 0) {
+        level.spawnTimer = 700;
+        level.stars.push({ x: rand(40, W-40), y: -20, vy: 3, phase: rand(0, Math.PI*2) });
+      }
+      for (let i = level.stars.length-1; i >= 0; i--) {
+        const s = level.stars[i];
+        s.y += s.vy;
+        s.phase += 0.1;
+        if (s.y > H + 20) { level.stars.splice(i, 1); continue; }
+        if (dist(s, player) < player.r + 18) {
+          level.stars.splice(i, 1);
+          level.starsCaught++;
+          sPop();
+          floatMsg("⭐+1", s.x, s.y);
+          if (level.starsCaught >= level.starsTarget) winLevel();
+        }
+      }
+      // trap door check
+      const d = level.trapDoor;
+      if (Math.abs(player.x - d.x) < 32 && Math.abs(player.y - d.y) < 50) {
+        restartFromBeginning();
+      }
+    },
+    draw() {
+      // night sky background sparkle
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      for (let i = 0; i < 60; i++) {
+        const x = (i * 137) % W;
+        const y = (i * 53) % H;
+        ctx.fillRect(x, y, 2, 2);
+      }
+      drawDoor(level.trapDoor);
+      level.stars.forEach(s => {
+        const pulse = 1 + Math.sin(s.phase) * 0.2;
+        const grad = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, 22 * pulse);
+        grad.addColorStop(0, 'rgba(255,245,160,0.7)');
+        grad.addColorStop(1, 'rgba(255,245,160,0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath(); ctx.arc(s.x, s.y, 22 * pulse, 0, Math.PI*2); ctx.fill();
+        drawStarShape(s.x, s.y, pulse);
+      });
+      // counter
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 32px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 5;
+      const txt = `Caught: ${level.starsCaught}/${level.starsTarget}`;
+      ctx.strokeText(txt, W/2, 180);
+      ctx.fillText(txt, W/2, 180);
+    }
+  },
+
+  // Level 6: STAIRS — sign says walk UP, but going up is endless!
+  // She has to go up first, then back DOWN — only then does the "next level" door appear.
+  {
+    name: "Level 6: STAIRS",
+    sign: "🪜 Walk UP the stairs to win! ⬆️⬆️⬆️",
+    bgColor: '#cdfaff',
+    init() {
+      player.x = W/2; player.y = H - 80;
+      level.scrollY = 0;       // how far the world has scrolled (climbed)
+      level.maxScroll = 0;     // how high she's ever been
+      level.exitDoor = null;   // appears once she goes up AND comes back down
+      level.hint1 = false;
+      level.hint2 = false;
+    },
+    update(dt) {
+      const MID = H/2;
+      // Walking past the middle going UP → convert to scrollY (world scrolls)
+      if (player.y < MID) {
+        const dy = MID - player.y;
+        level.scrollY += dy;
+        level.maxScroll = Math.max(level.maxScroll, level.scrollY);
+        player.y = MID;
+      }
+      // Walking past the middle going DOWN with scroll active → scroll back first
+      if (player.y > MID && level.scrollY > 0) {
+        const dy = player.y - MID;
+        const undo = Math.min(dy, level.scrollY);
+        level.scrollY -= undo;
+        player.y = MID + (dy - undo);
+      }
+
+      // Hints to nudge her in the right direction
+      if (!level.hint1 && level.maxScroll > 350) {
+        level.hint1 = true;
+        floatMsg("Hmm... it goes on FOREVER!", W/2, MID - 80, '#9b6cff');
+      }
+      if (!level.hint2 && level.maxScroll > 600) {
+        level.hint2 = true;
+        floatMsg("Maybe try going BACK DOWN?", W/2, MID - 50, '#9b6cff');
+      }
+
+      // Door appears only AFTER she's gone up AND come back to the start
+      if (!level.exitDoor && level.maxScroll >= 250 && level.scrollY <= 5) {
+        level.exitDoor = { x: W/2, y: H - 250, color: '#3aaa3a', label: "🎉 NEXT LEVEL! 🎉", isGoal: true };
+        floatMsg("✨ A NEW DOOR APPEARED! ✨", W/2, H/2 - 30, '#3aaa3a');
+        sWin();
+      }
+      if (level.exitDoor) {
+        const d = level.exitDoor;
+        if (Math.abs(player.x - d.x) < 32 && Math.abs(player.y - d.y) < 50) {
+          winLevel();
+        }
+      }
+    },
+    draw() {
+      // Sky color shifts darker as she climbs higher (looks like going into space)
+      const t = Math.min(1, level.scrollY / 1500);
+      const r = Math.round(205 - t * 180);
+      const g = Math.round(250 - t * 220);
+      const b = Math.round(255 - t * 100);
+      const grad = ctx.createLinearGradient(0, 0, 0, H);
+      grad.addColorStop(0, `rgb(${r},${g},${b})`);
+      grad.addColorStop(1, '#cdfaff');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
+
+      // Twinkling stars at high altitude
+      if (level.scrollY > 200) {
+        const alpha = Math.min(1, (level.scrollY - 200) / 400);
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+        for (let i = 0; i < 60; i++) {
+          const sx = (i * 137) % W;
+          let sy = ((i * 53) - level.scrollY * 0.2) % H;
+          if (sy < 0) sy += H;
+          ctx.fillRect(sx, sy, 2, 2);
+        }
+      }
+
+      // The endless staircase — vertical column of step-blocks, scrolled by level.scrollY
+      const stepW = 100, stepH = 28;
+      const baseY = H - 30;
+      const totalSteps = 80;
+      for (let i = -3; i < totalSteps; i++) {
+        const xOff = (i % 2 === 0) ? -18 : 18;   // zigzag for stair feel
+        const x = W/2 - stepW/2 + xOff;
+        const yWorld = baseY - i * stepH;
+        const yScreen = yWorld + level.scrollY;
+        if (yScreen < -40 || yScreen > H + 40) continue;
+        ctx.fillStyle = i % 2 === 0 ? '#a87038' : '#7a4a1a';
+        ctx.fillRect(x, yScreen, stepW, stepH);
+        ctx.strokeStyle = '#5a3010';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, yScreen, stepW, stepH);
+        // step number on every 5th step
+        if (i > 0 && i % 5 === 0) {
+          ctx.fillStyle = '#ffd700';
+          ctx.font = 'bold 14px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(`step ${i}`, x + stepW/2, yScreen + 19);
+        }
+      }
+
+      // Height counter
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 24px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 5;
+      const txt = `Height: ${Math.round(level.scrollY)}`;
+      ctx.strokeText(txt, W/2, 180);
+      ctx.fillText(txt, W/2, 180);
+
+      // Floating up-arrow indicator (suggesting "go up!")
+      if (!level.exitDoor) {
+        const bob = Math.sin(performance.now() / 200) * 6;
+        ctx.save();
+        ctx.translate(W - 70, 240 + bob);
+        ctx.fillStyle = '#ff3a6f';
+        ctx.strokeStyle = '#80005a';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(0, -28);
+        ctx.lineTo(22, 0);
+        ctx.lineTo(10, 0);
+        ctx.lineTo(10, 25);
+        ctx.lineTo(-10, 25);
+        ctx.lineTo(-10, 0);
+        ctx.lineTo(-22, 0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // exit door if it has appeared
+      if (level.exitDoor) drawDoor(level.exitDoor);
+    }
+  },
+];
+
+// ----- Level state machine -----
+function loadLevel(i) {
+  level = {};
+  level.init = levels[i].init;
+  level.update = levels[i].update;
+  level.draw = levels[i].draw;
+  level.bgColor = levels[i].bgColor;
+  level.init();
+  document.getElementById('level-name').textContent = levels[i].name;
+  document.getElementById('sign').textContent = levels[i].sign;
+  canvas.style.background = level.bgColor || '#cdfaff';
+  levelTransitioning = false;
+}
+
+function winLevel() {
+  if (levelTransitioning) return;
+  levelTransitioning = true;
+  sWin();
+  floatMsg("✨ YES! Opposite worked! ✨", W/2, H/2 - 40, '#3aaa3a');
+  setTimeout(() => {
+    levelIdx++;
+    if (levelIdx >= levels.length) {
+      gameWon();
+    } else {
+      loadLevel(levelIdx);
+    }
+  }, 1500);
+}
+
+// Wrong move = back to LEVEL 1!
+function restartFromBeginning() {
+  if (levelTransitioning) return;
+  levelTransitioning = true;
+  sNope();
+  floatMsg("😱 OOPS! You obeyed the sign!", W/2, H/2 - 60, '#ff3a6f');
+  setTimeout(() => floatMsg("← Back to LEVEL 1!", W/2, H/2 - 20, '#ff3a6f'), 400);
+  setTimeout(() => {
+    levelIdx = 0;
+    loadLevel(0);
+  }, 1800);
+}
+
+function gameWon() {
+  won = true;
+  started = false;
+  const ov = document.getElementById('overlay');
+  ov.querySelector('h2').textContent = '🏆 YOU WON OPPOSITE DAY! 🏆';
+  // wipe old paragraphs and put a single celebratory one
+  ov.querySelectorAll('p').forEach((p, i) => { if (i > 0) p.remove(); });
+  ov.querySelector('p').innerHTML = "You did <b>ALL</b> the opposites correctly!<br>You are an Opposite Day MASTER, Camilla! 🎉";
+  startBtn.textContent = 'PLAY AGAIN';
+  ov.classList.remove('hidden');
+}
+
+// ----- Input -----
+const keys = {};
+window.addEventListener('keydown', (e) => {
+  const k = e.key.toLowerCase();
+  keys[k] = true;
+  if (['arrowleft','arrowright','arrowup','arrowdown',' '].includes(k)) e.preventDefault();
+});
+window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+
+// ----- Main loop -----
+function update(dt) {
+  if (!started || !level) return;
+  // Player movement (controls are NORMAL — what's "opposite" is the signs!)
+  let dx = 0, dy = 0;
+  if (keys['arrowleft']  || keys['a']) dx -= 1;
+  if (keys['arrowright'] || keys['d']) dx += 1;
+  if (keys['arrowup']    || keys['w']) dy -= 1;
+  if (keys['arrowdown']  || keys['s']) dy += 1;
+  if (dx || dy) {
+    const len = Math.hypot(dx, dy);
+    dx /= len; dy /= len;
+    player.x += dx * player.speed;
+    player.y += dy * player.speed;
+    if (dx !== 0) player.facing = dx > 0 ? 1 : -1;
+    player.walkPhase += 0.3;
+  }
+  player.x = Math.max(player.r, Math.min(W - player.r, player.x));
+  player.y = Math.max(player.r, Math.min(H - player.r, player.y));
+
+  if (level.update) level.update(dt);
+  updateFloats(dt);
+}
+
+function draw() {
+  ctx.fillStyle = level?.bgColor || '#cdfaff';
+  ctx.fillRect(0, 0, W, H);
+  if (level && level.draw) level.draw();
+  drawPlayer();
+  drawFloats();
+}
+
+let lastTime = performance.now();
+function loop(now) {
+  const dt = Math.min(now - lastTime, 50);
+  lastTime = now;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// ----- Start screen -----
+const overlay = document.getElementById('overlay');
+const startBtn = document.getElementById('start-btn');
+startBtn.addEventListener('click', () => {
+  ensureAudio();
+  if (won) {
+    won = false;
+    levelIdx = 0;
+    overlay.querySelector('h2').textContent = '🙃 Welcome to Opposite Day! 🙃';
+    overlay.querySelector('p').innerHTML = 'Every sign in this game is <b>LYING</b> to you!<br>Do the <b>OPPOSITE</b> of what every sign says.';
+  }
+  overlay.classList.add('hidden');
+  started = true;
+  loadLevel(levelIdx);
+});
+</script>
+</body>
+</html>
