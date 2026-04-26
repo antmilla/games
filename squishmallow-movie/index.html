@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Squishmallow Friends — A Movie</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    height: 100%;
+    font-family: "Comic Sans MS", "Trebuchet MS", sans-serif;
+    background: #000;
+    color: #fff;
+    overflow: hidden;
+  }
+
+  #stage {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+    transition: background 0.8s ease-in-out;
+  }
+
+  /* progress bar across the top */
+  #progress {
+    position: absolute;
+    top: 0; left: 0;
+    height: 6px;
+    width: 0%;
+    background: linear-gradient(90deg, #ff5fc6, #ffe14c, #5fd96b, #5fa8ff);
+    z-index: 50;
+    transition: width 0.1s linear;
+  }
+  #scene-indicator {
+    position: absolute;
+    top: 14px; left: 14px;
+    z-index: 50;
+    background: rgba(0,0,0,0.6);
+    color: #fff5cc;
+    padding: 6px 14px;
+    border-radius: 12px;
+    font-size: 14px;
+    border: 2px solid #ffe14c;
+  }
+
+  /* movie controls */
+  #controls {
+    position: absolute;
+    top: 14px; right: 14px;
+    z-index: 50;
+    display: flex;
+    gap: 8px;
+  }
+  .ctrl {
+    background: rgba(255,255,255,0.9);
+    color: #2a0033;
+    border: 2px solid #ff5fc6;
+    border-radius: 12px;
+    padding: 8px 14px;
+    font-family: inherit;
+    cursor: pointer;
+    font-size: 16px;
+    box-shadow: 0 3px 0 #80005a;
+  }
+  .ctrl:active { transform: translateY(2px); box-shadow: 0 1px 0 #80005a; }
+
+  /* generic stage elements */
+  .actor {
+    position: absolute;
+    user-select: none;
+    pointer-events: none;
+    filter: drop-shadow(0 8px 0 rgba(0,0,0,0.25));
+  }
+  .caption {
+    position: absolute;
+    bottom: 8%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.78);
+    color: #fff5cc;
+    border: 4px solid #ffe14c;
+    padding: 14px 26px;
+    border-radius: 22px;
+    font-size: 28px;
+    font-weight: bold;
+    text-shadow: 2px 2px 0 #000;
+    z-index: 20;
+    text-align: center;
+    max-width: 80%;
+    animation: capPop 0.6s ease-out;
+  }
+  @keyframes capPop {
+    0%   { opacity: 0; transform: translateX(-50%) translateY(20px) scale(0.7); }
+    100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  }
+  .title-text {
+    position: absolute;
+    top: 22%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 56px;
+    font-weight: bold;
+    color: #ffd700;
+    text-shadow: 3px 3px 0 #2a0033, 5px 5px 0 #80005a;
+    z-index: 20;
+    text-align: center;
+    animation: titlePop 1s ease-out;
+  }
+  @keyframes titlePop {
+    0%   { opacity: 0; transform: translateX(-50%) scale(0.3); }
+    60%  { opacity: 1; transform: translateX(-50%) scale(1.1); }
+    100% { opacity: 1; transform: translateX(-50%) scale(1); }
+  }
+  .subtitle-text {
+    position: absolute;
+    top: 38%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 28px;
+    color: #fff5cc;
+    text-shadow: 2px 2px 0 #2a0033;
+    z-index: 20;
+    animation: capPop 1.2s ease-out;
+    animation-delay: 0.5s;
+    animation-fill-mode: both;
+  }
+
+  /* animations */
+  .breathe { animation: breathe 2.5s ease-in-out infinite; }
+  @keyframes breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+
+  .bob { animation: bob 1.2s ease-in-out infinite alternate; }
+  @keyframes bob { from { transform: translateY(0); } to { transform: translateY(-12px); } }
+
+  .stretch { animation: stretch 4s ease-in-out infinite; }
+  @keyframes stretch {
+    0% { transform: scaleX(1) scaleY(1); }
+    50% { transform: scaleX(1.3) scaleY(0.85); }
+    100% { transform: scaleX(1) scaleY(1); }
+  }
+
+  .walk { animation: walkAcross 4s linear infinite, bob 0.5s ease-in-out infinite alternate; }
+  @keyframes walkAcross {
+    from { left: -100px; }
+    to { left: 110vw; }
+  }
+
+  .fly-across {
+    animation: flyAcross var(--dur, 5s) linear infinite;
+  }
+  @keyframes flyAcross {
+    0% { transform: translateX(-100px) translateY(var(--y-start, 0)); }
+    50% { transform: translateX(50vw) translateY(calc(var(--y-start, 0) - 20px)); }
+    100% { transform: translateX(110vw) translateY(var(--y-start, 0)); }
+  }
+
+  .rain-drop {
+    position: absolute;
+    top: -30px;
+    color: #5fa8ff;
+    font-size: 24px;
+    animation: rainFall var(--dur, 1.4s) linear infinite;
+  }
+  @keyframes rainFall {
+    0% { transform: translateY(0) rotate(15deg); opacity: 0.8; }
+    100% { transform: translateY(110vh) rotate(15deg); opacity: 0.2; }
+  }
+
+  .twinkle {
+    animation: twinkle 1.8s ease-in-out infinite alternate;
+  }
+  @keyframes twinkle { from { opacity: 0.3; transform: scale(0.8); } to { opacity: 1; transform: scale(1.1); } }
+
+  .float-up {
+    animation: floatUp var(--dur, 3s) ease-out infinite;
+  }
+  @keyframes floatUp {
+    0% { opacity: 0; transform: translateY(0) scale(0.5); }
+    20% { opacity: 1; }
+    100% { opacity: 0; transform: translateY(-220px) scale(1.4); }
+  }
+
+  .chase { animation: chaseRun 0.6s ease-in-out infinite alternate; }
+  @keyframes chaseRun { from { transform: translateY(0) rotate(-3deg); } to { transform: translateY(-10px) rotate(3deg); } }
+
+  .pop-in { animation: popIn 0.8s ease-out forwards; }
+  @keyframes popIn {
+    0% { opacity: 0; transform: scale(0); }
+    60% { opacity: 1; transform: scale(1.15); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+
+  .ground {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 25%;
+  }
+  .grass-ground {
+    background: linear-gradient(180deg, #6dab4a 0%, #2d5016 100%);
+  }
+  .floor-ground {
+    background: linear-gradient(180deg, #c4956b 0%, #8b5a3c 100%);
+  }
+  .sky-ground { display:none; }
+
+  /* The end card */
+  #the-end {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    color: #ffd700;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    animation: capPop 1s ease-out;
+  }
+  #the-end h1 {
+    font-size: 72px;
+    margin: 0 0 12px;
+    text-shadow: 3px 3px 0 #80005a, 6px 6px 0 #2a0033;
+  }
+  #the-end p { font-size: 22px; color: #fff5cc; margin: 4px 0; }
+  #the-end button {
+    margin-top: 24px;
+    background: linear-gradient(#ffd6f5, #ff8ed4);
+    color: #4a0033;
+    border: 4px solid #ff5fc6;
+    border-radius: 18px;
+    padding: 14px 30px;
+    font-family: inherit;
+    font-size: 22px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 5px 0 #80005a;
+  }
+
+  #start-screen {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, #ffd6f5 0%, #c46bff 50%, #5fd9ff 100%);
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: #fff;
+  }
+  #start-screen h1 {
+    font-size: 72px;
+    margin: 0 0 16px;
+    color: #ffd700;
+    text-shadow: 3px 3px 0 #2a0033, 6px 6px 0 #4a0033;
+    animation: titlePop 1s ease-out;
+  }
+  #start-screen p {
+    font-size: 24px;
+    margin: 6px 0;
+    text-shadow: 2px 2px 0 #2a0033;
+  }
+  #start-screen button {
+    margin-top: 24px;
+    background: linear-gradient(#ffe14c, #ffaa00);
+    color: #4a0033;
+    border: 5px solid #c47a00;
+    border-radius: 22px;
+    padding: 22px 50px;
+    font-family: inherit;
+    font-size: 36px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 8px 0 #80005a;
+    text-shadow: 1px 1px 0 #fff5cc;
+    animation: bob 1.6s ease-in-out infinite alternate;
+  }
+  #start-screen button:active { transform: translateY(4px); box-shadow: 0 4px 0 #80005a; }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="progress"></div>
+  <div id="scene-indicator">Scene 1</div>
+  <div id="controls">
+    <button class="ctrl" id="pause-btn">⏸ Pause</button>
+    <button class="ctrl" id="restart-btn">🔄 Restart</button>
+  </div>
+
+  <div id="scene-content"></div>
+
+  <div id="the-end" class="hidden">
+    <h1>🎬 THE END 🎬</h1>
+    <p>🌸 Squishy hugs forever! 💖🦄</p>
+    <button id="replay-btn">▶ Watch Again</button>
+  </div>
+
+  <div id="start-screen">
+    <h1>🌸 SQUISHMALLOW FRIENDS 🦄</h1>
+    <p>A movie with sound and voice! 🎙️</p>
+    <button id="start-btn">▶ START THE MOVIE</button>
+    <button id="test-voice-btn" style="margin-top:12px;font-size:22px;background:linear-gradient(#cdfaff,#5fd9ff);border-color:#2c7aa8;color:#002a3d;box-shadow:0 6px 0 #003d5a;">🔊 Test Voice First</button>
+    <p id="voice-status" style="font-size: 16px; opacity: 0.8; margin-top: 18px;">Make sure your sound is on! 🔊</p>
+  </div>
+</div>
+
+<script>
+const stage = document.getElementById('stage');
+const sceneEl = document.getElementById('scene-content');
+const progressBar = document.getElementById('progress');
+const sceneIndicator = document.getElementById('scene-indicator');
+const theEnd = document.getElementById('the-end');
+
+// ---- Narration (text-to-speech) ----
+const synth = window.speechSynthesis;
+let preferredVoice = null;
+
+function pickVoice() {
+  if (!synth) return;
+  const voices = synth.getVoices();
+  if (!voices.length) return;
+  // Prefer a friendly female English voice; fall back to any English voice.
+  preferredVoice =
+    voices.find(v => /samantha|karen|moira|tessa|ava|allison|google.*us.*english.*female|female/i.test(v.name) && v.lang.startsWith('en'))
+    || voices.find(v => v.lang.startsWith('en'))
+    || voices[0];
+  console.log('TTS: picked voice =', preferredVoice && preferredVoice.name, '/', preferredVoice && preferredVoice.lang);
+}
+
+if (synth) {
+  pickVoice();
+  // Some browsers (Chrome) load voices asynchronously
+  synth.addEventListener('voiceschanged', pickVoice);
+  console.log('TTS: synth available, initial voices =', synth.getVoices().length);
+} else {
+  console.warn('TTS: speechSynthesis NOT available in this browser');
+}
+
+// Play a real human-voice MP3 file (pre-generated for each scene).
+let currentVoiceAudio = null;
+function playVoiceFile(src) {
+  if (currentVoiceAudio) {
+    currentVoiceAudio.pause();
+    currentVoiceAudio.currentTime = 0;
+    currentVoiceAudio = null;
+  }
+  if (!src) return;
+  const audio = new Audio(src);
+  audio.volume = 1.0;
+  audio.play().catch(e => {
+    console.warn('Voice MP3 play failed; falling back to kitty boops:', e);
+    speakKitty(audio._fallbackText || 'meow meow');
+  });
+  currentVoiceAudio = audio;
+}
+
+function speak(text) {
+  // We use pre-recorded MP3 voice files (loadScene plays them by scene index).
+  // This fallback only fires for ad-hoc lines (test button, "the end" voice).
+  speakKitty(text);
+}
+
+// Animal-Crossing-style "kitty voice" — cute musical babble
+// timed to the rhythm of the words. Doesn't say real words but feels like talking.
+function speakKitty(text) {
+  ensureAudio();
+  if (!audioCtx || !text) return;
+  // strip emojis and punctuation, split into words
+  const clean = text.replace(/[^\w\s']/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!clean) return;
+  const words = clean.split(' ');
+  let when = 0;
+  for (const word of words) {
+    // estimate syllables — roughly every 2-3 letters
+    const syllables = Math.max(1, Math.min(4, Math.round(word.length / 2.5)));
+    // pick a base pitch for this word — ends of sentences trend down
+    const isLast = word === words[words.length - 1];
+    const basePitch = isLast ? 380 + Math.random() * 80 : 460 + Math.random() * 160;
+    for (let i = 0; i < syllables; i++) {
+      const c = word[Math.min(i * 2, word.length - 1)] || word[0];
+      const isVowel = /[aeiouy]/i.test(c);
+      // vowels chirp higher, consonants sit lower; tiny random wobble
+      const pitch = basePitch * (isVowel ? 1.18 : 0.88) * (1 + (Math.random() - 0.5) * 0.08);
+      tone(pitch, 0.12, 'triangle', 0.10, when);
+      when += 0.13;
+    }
+    when += 0.08;     // pause between words
+  }
+}
+
+// ---- Sound (gentle ambient + key effects) ----
+let audioCtx = null;
+function ensureAudio() {
+  if (!audioCtx) try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+}
+function tone(freq, dur=0.18, type='sine', vol=0.12, when=0) {
+  ensureAudio();
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime + when;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.value = vol;
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(vol, t + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(audioCtx.destination);
+  o.start(t); o.stop(t + dur);
+}
+const sChime = () => { tone(523, 0.3, 'triangle', 0.1); tone(659, 0.3, 'triangle', 0.1, 0.1); tone(784, 0.4, 'triangle', 0.1, 0.2); };
+const sYawn = () => { tone(220, 0.7, 'sine', 0.1); tone(330, 0.5, 'sine', 0.08, 0.4); };
+const sNom = () => { for (let i = 0; i < 4; i++) tone(400 + Math.random()*300, 0.06, 'square', 0.08, i*0.1); };
+const sPurr = () => { tone(110, 1.5, 'triangle', 0.06); };
+const sFlute = () => { tone(880, 0.18, 'triangle', 0.12); tone(1047, 0.18, 'triangle', 0.12, 0.18); tone(784, 0.28, 'triangle', 0.12, 0.36); };
+const sChirp = () => { tone(1200, 0.08, 'square', 0.1); tone(1500, 0.08, 'square', 0.1, 0.1); };
+const sRain = () => {
+  for (let i = 0; i < 30; i++) tone(200 + Math.random()*400, 0.04, 'sine', 0.04, i*0.08);
+};
+const sCozy = () => { tone(523, 0.4, 'sine', 0.1); tone(659, 0.4, 'sine', 0.1, 0.2); tone(784, 0.5, 'sine', 0.1, 0.4); tone(1047, 0.7, 'sine', 0.1, 0.6); };
+
+// ---- Scene helpers ----
+function emoji(text, opts = {}) {
+  const e = document.createElement('div');
+  e.className = 'actor ' + (opts.cls || '');
+  e.textContent = text;
+  if (opts.size) e.style.fontSize = opts.size;
+  if (opts.top !== undefined) e.style.top = opts.top;
+  if (opts.left !== undefined) e.style.left = opts.left;
+  if (opts.right !== undefined) e.style.right = opts.right;
+  if (opts.bottom !== undefined) e.style.bottom = opts.bottom;
+  if (opts.delay) e.style.animationDelay = opts.delay;
+  if (opts.dur) e.style.setProperty('--dur', opts.dur);
+  if (opts.yStart) e.style.setProperty('--y-start', opts.yStart);
+  if (opts.zIndex) e.style.zIndex = opts.zIndex;
+  if (opts.transform) e.style.transform = opts.transform;
+  return e;
+}
+function caption(text) {
+  const c = document.createElement('div');
+  c.className = 'caption';
+  c.textContent = text;
+  return c;
+}
+function ground(cls) {
+  const g = document.createElement('div');
+  g.className = 'ground ' + cls;
+  return g;
+}
+
+// ---- The Movie: 9 scenes (SQUISHMALLOW edition) ----
+// Squishmallows are round and squishy! We use round-faced emojis with
+// pastel halos to give that plush-toy vibe.
+const SQUISH_COLORS = {
+  pink:    'rgba(255,105,180,0.55)',
+  purple:  'rgba(196,107,255,0.55)',
+  blue:    'rgba(95,217,255,0.55)',
+  yellow:  'rgba(255,225,76,0.55)',
+  mint:    'rgba(120,230,180,0.55)',
+  peach:   'rgba(255,178,140,0.55)',
+};
+function squish(emojiText, color, opts = {}) {
+  const e = emoji(emojiText, opts);
+  e.style.background = `radial-gradient(circle, ${SQUISH_COLORS[color] || color} 0%, transparent 65%)`;
+  e.style.borderRadius = '50%';
+  return e;
+}
+
+const SCENES = [
+  // 1. Title
+  {
+    name: 'Scene 1: Title',
+    duration: 5500,
+    narration: 'Squishmallow Friends! A big squishy day!',
+    bg: 'linear-gradient(180deg, #ffd6f5 0%, #c46bff 50%, #5fd9ff 100%)',
+    build(el) {
+      sChime();
+      // sparkles everywhere
+      for (let i = 0; i < 25; i++) {
+        const s = emoji(['✨','⭐','💫'][i % 3], { cls: 'twinkle', size: '24px' });
+        s.style.top = (Math.random() * 100) + 'vh';
+        s.style.left = (Math.random() * 100) + 'vw';
+        s.style.animationDelay = (Math.random() * 2) + 's';
+        el.appendChild(s);
+      }
+      // a row of squishmallow friends in pastel halos
+      const friends = [
+        ['🐱','pink','20%'], ['🐰','blue','35%'],
+        ['🦄','purple','50%'], ['🐸','mint','65%'], ['🐻','yellow','80%']
+      ];
+      friends.forEach(([face, color, left], i) => {
+        const f = squish(face, color, { cls: 'breathe', size: '85px', bottom: '15%', left });
+        f.style.animationDelay = (i * 0.2) + 's';
+        el.appendChild(f);
+      });
+      const title = document.createElement('div');
+      title.className = 'title-text';
+      title.textContent = '🌸 SQUISHMALLOW FRIENDS 🦄';
+      el.appendChild(title);
+      const sub = document.createElement('div');
+      sub.className = 'subtitle-text';
+      sub.textContent = '✨ A Big Squishy Day ✨';
+      el.appendChild(sub);
+    },
+  },
+
+  // 2. Wake up
+  {
+    name: 'Scene 2: Wake Up',
+    duration: 6000,
+    narration: 'Good morning, Pink! Time to wake up!',
+    bg: 'linear-gradient(180deg, #ffd6f5 0%, #ffe1e6 100%)',
+    build(el) {
+      sYawn();
+      el.appendChild(ground('floor-ground'));
+      const bed = emoji('🛏️', { size: '210px', bottom: '14%', left: '50%', transform: 'translateX(-50%)' });
+      el.appendChild(bed);
+      // pink squishmallow on bed
+      const pink = squish('🐱', 'pink', { cls: 'breathe', size: '120px', bottom: '32%', left: '50%', transform: 'translateX(-50%)' });
+      pink.style.zIndex = 5;
+      el.appendChild(pink);
+      // Z's
+      for (let i = 0; i < 4; i++) {
+        const z = emoji('💤', { cls: 'float-up', size: '34px', bottom: '46%', left: 'calc(50% + 30px)', dur: '2.5s' });
+        z.style.animationDelay = (i * 0.6) + 's';
+        el.appendChild(z);
+      }
+      // sparkles
+      for (let i = 0; i < 10; i++) {
+        const s = emoji('✨', { cls: 'twinkle', size: '20px' });
+        s.style.top = (Math.random()*60) + 'vh';
+        s.style.left = (Math.random()*100) + 'vw';
+        s.style.animationDelay = (Math.random()*2) + 's';
+        el.appendChild(s);
+      }
+      el.appendChild(caption('🌸 Good morning, Pink!'));
+    },
+  },
+
+  // 3. Friends arrive
+  {
+    name: 'Scene 3: Friends',
+    duration: 6500,
+    narration: 'Look! All the Squishmallow friends are here!',
+    bg: 'linear-gradient(180deg, #cdfaff 0%, #ffd6f5 100%)',
+    build(el) {
+      sFlute();
+      el.appendChild(ground('grass-ground'));
+      // door
+      const door = emoji('🚪', { size: '110px', bottom: '20%', left: '8%' });
+      el.appendChild(door);
+      // welcoming pink
+      const pink = squish('🐱', 'pink', { cls: 'bob', size: '95px', bottom: '20%', left: '25%' });
+      el.appendChild(pink);
+      // friends arriving (each bobbing)
+      const friends = [
+        ['🐰','blue','40%','0s'],
+        ['🦄','purple','55%','0.2s'],
+        ['🐸','mint','70%','0.4s'],
+        ['🐻','yellow','85%','0.6s'],
+      ];
+      friends.forEach(([f, c, left, delay]) => {
+        const sq = squish(f, c, { cls: 'bob', size: '90px', bottom: '20%', left });
+        sq.style.animationDelay = delay;
+        el.appendChild(sq);
+      });
+      // hearts
+      for (let i = 0; i < 8; i++) {
+        const h = emoji('💖', { cls: 'float-up', size: '28px', bottom: '40%', left: (20 + i*10) + '%', dur: '2.5s' });
+        h.style.animationDelay = (i * 0.3) + 's';
+        el.appendChild(h);
+      }
+      el.appendChild(caption('💖 The friends are here!'));
+    },
+  },
+
+  // 4. Tea party
+  {
+    name: 'Scene 4: Tea Party',
+    duration: 6500,
+    narration: 'Tea party time! Squishy hugs all around!',
+    bg: 'linear-gradient(180deg, #ffe1e6 0%, #ffd6f5 100%)',
+    build(el) {
+      setTimeout(sNom, 600);
+      setTimeout(sNom, 2400);
+      el.appendChild(ground('floor-ground'));
+      // tea + cake on a low table
+      const teapot = emoji('🫖', { size: '90px', bottom: '28%', left: '50%', transform: 'translateX(-50%)' });
+      el.appendChild(teapot);
+      const cup1 = emoji('🍵', { size: '60px', bottom: '24%', left: '30%' });
+      el.appendChild(cup1);
+      const cup2 = emoji('🍵', { size: '60px', bottom: '24%', left: '65%' });
+      el.appendChild(cup2);
+      const cake = emoji('🧁', { size: '70px', bottom: '24%', left: '40%' });
+      el.appendChild(cake);
+      // 4 squishmallows around
+      const friends = [
+        ['🐱','pink','15%'],
+        ['🐰','blue','38%'],
+        ['🦄','purple','60%'],
+        ['🐻','yellow','82%'],
+      ];
+      friends.forEach(([f, c, left], i) => {
+        const sq = squish(f, c, { cls: 'bob', size: '90px', bottom: '40%', left });
+        sq.style.animationDelay = (i * 0.2) + 's';
+        el.appendChild(sq);
+      });
+      // hearts
+      for (let i = 0; i < 6; i++) {
+        const h = emoji('💖', { cls: 'float-up', size: '28px', bottom: '55%', left: (30 + Math.random()*40) + '%', dur: '2.5s' });
+        h.style.animationDelay = (i * 0.4) + 's';
+        el.appendChild(h);
+      }
+      el.appendChild(caption('🫖 Tea party!'));
+    },
+  },
+
+  // 5. Rainbow play
+  {
+    name: 'Scene 5: Rainbow',
+    duration: 6500,
+    narration: 'Outside under the rainbow! So pretty!',
+    bg: 'linear-gradient(180deg, #cdfaff 0%, #bff5b5 60%, #6dab4a 100%)',
+    build(el) {
+      sChirp();
+      el.appendChild(ground('grass-ground'));
+      // big rainbow
+      const rainbow = emoji('🌈', { cls: 'breathe', size: '220px', top: '15%', left: '50%', transform: 'translateX(-50%)' });
+      el.appendChild(rainbow);
+      // sun
+      const sun = emoji('☀️', { cls: 'breathe', size: '80px', top: '12%', left: '12%' });
+      el.appendChild(sun);
+      // squishmallows in a happy line
+      const friends = [
+        ['🐱','pink','15%','0s'],
+        ['🐰','blue','35%','0.2s'],
+        ['🦄','purple','55%','0.4s'],
+        ['🐸','mint','75%','0.6s'],
+      ];
+      friends.forEach(([f, c, left, delay]) => {
+        const sq = squish(f, c, { cls: 'bob', size: '90px', bottom: '20%', left });
+        sq.style.animationDelay = delay;
+        el.appendChild(sq);
+      });
+      // butterflies
+      for (let i = 0; i < 4; i++) {
+        const bf = emoji('🦋', { cls: 'fly-across', size: '40px', top: (38 + i*4) + '%', dur: (5 + i) + 's' });
+        bf.style.animationDelay = (i * 0.5) + 's';
+        el.appendChild(bf);
+      }
+      el.appendChild(caption('🌈 Rainbow day!'));
+    },
+  },
+
+  // 6. Dance party
+  {
+    name: 'Scene 6: Dance Party',
+    duration: 6000,
+    narration: 'Dance party! Wiggle wiggle squish!',
+    bg: 'linear-gradient(180deg, #ff5fc6 0%, #c46bff 50%, #5fa8ff 100%)',
+    build(el) {
+      sChirp();
+      el.appendChild(ground('floor-ground'));
+      // disco ball above
+      const disco = emoji('🪩', { cls: 'breathe', size: '90px', top: '8%', left: '50%', transform: 'translateX(-50%)' });
+      el.appendChild(disco);
+      // 5 friends bouncing on the dance floor
+      const friends = [
+        ['🐱','pink','12%','0s'],
+        ['🐰','blue','30%','0.15s'],
+        ['🦄','purple','48%','0.3s'],
+        ['🐸','mint','66%','0.45s'],
+        ['🐻','yellow','84%','0.6s'],
+      ];
+      friends.forEach(([f, c, left, delay]) => {
+        const sq = squish(f, c, { cls: 'bob', size: '85px', bottom: '20%', left });
+        sq.style.animationDelay = delay;
+        sq.style.animationDuration = '0.4s';
+        el.appendChild(sq);
+      });
+      // music notes
+      for (let i = 0; i < 12; i++) {
+        const n = emoji(['🎵','🎶','🎼'][i%3], { cls: 'float-up', size: '32px', bottom: '40%', left: (Math.random()*100) + '%', dur: '2.5s' });
+        n.style.animationDelay = (i * 0.25) + 's';
+        el.appendChild(n);
+      }
+      el.appendChild(caption('🪩 Dance party!'));
+    },
+  },
+
+  // 7. Snacks
+  {
+    name: 'Scene 7: Snacks',
+    duration: 5500,
+    narration: 'Yummy fruity snacks for everyone!',
+    bg: 'linear-gradient(180deg, #ffe14c 0%, #ffd6a3 100%)',
+    build(el) {
+      setTimeout(sNom, 500);
+      setTimeout(sNom, 1800);
+      el.appendChild(ground('floor-ground'));
+      // fruit basket
+      const fruits = ['🍓','🍇','🍌','🍉','🍑','🍎'];
+      fruits.forEach((fr, i) => {
+        const f = emoji(fr, { size: '60px', bottom: '24%', left: (15 + i*13) + '%' });
+        el.appendChild(f);
+      });
+      // 3 squishmallows munching
+      const sqs = [
+        ['🐱','pink','22%'],
+        ['🦄','purple','45%'],
+        ['🐰','blue','70%'],
+      ];
+      sqs.forEach(([f, c, left], i) => {
+        const sq = squish(f, c, { cls: 'bob', size: '95px', bottom: '40%', left });
+        sq.style.animationDelay = (i * 0.3) + 's';
+        el.appendChild(sq);
+      });
+      for (let i = 0; i < 6; i++) {
+        const h = emoji('💖', { cls: 'float-up', size: '28px', bottom: '55%', left: (30 + Math.random()*40) + '%', dur: '2.5s' });
+        h.style.animationDelay = (i * 0.4) + 's';
+        el.appendChild(h);
+      }
+      el.appendChild(caption('🍓 Fruity snacks!'));
+    },
+  },
+
+  // 8. Story time
+  {
+    name: 'Scene 8: Story',
+    duration: 6500,
+    narration: 'Story time with all the friends.',
+    bg: 'linear-gradient(180deg, #c46bff 0%, #ffd6f5 100%)',
+    build(el) {
+      sCozy();
+      el.appendChild(ground('floor-ground'));
+      const sofa = emoji('🛋️', { size: '230px', bottom: '12%', left: '50%', transform: 'translateX(-50%)' });
+      el.appendChild(sofa);
+      // big book
+      const book = emoji('📖', { cls: 'breathe', size: '90px', bottom: '36%', left: '50%', transform: 'translateX(-50%)' });
+      el.appendChild(book);
+      // squishmallows snuggled around the book
+      const sqs = [
+        ['🐱','pink','18%'],
+        ['🐰','blue','32%'],
+        ['🦄','purple','62%'],
+        ['🐻','yellow','78%'],
+      ];
+      sqs.forEach(([f, c, left], i) => {
+        const sq = squish(f, c, { cls: 'breathe', size: '80px', bottom: '32%', left });
+        sq.style.animationDelay = (i * 0.3) + 's';
+        el.appendChild(sq);
+      });
+      // dreamy stars
+      for (let i = 0; i < 12; i++) {
+        const s = emoji('✨', { cls: 'twinkle', size: '22px' });
+        s.style.top = (Math.random()*40) + 'vh';
+        s.style.left = (Math.random()*100) + 'vw';
+        s.style.animationDelay = (Math.random()*2) + 's';
+        el.appendChild(s);
+      }
+      el.appendChild(caption('📖 Story time!'));
+    },
+  },
+
+  // 9. Cuddle pile bedtime
+  {
+    name: 'Scene 9: Cuddle Pile',
+    duration: 7500,
+    narration: 'Big squishy cuddle pile! Goodnight friends!',
+    bg: 'linear-gradient(180deg, #2a0033 0%, #6a4ae0 50%, #c46bff 100%)',
+    build(el) {
+      sCozy();
+      setTimeout(sPurr, 800);
+      el.appendChild(ground('floor-ground'));
+      // moon
+      const moon = emoji('🌙', { cls: 'breathe', size: '90px', top: '12%', right: '15%' });
+      el.appendChild(moon);
+      // bed
+      const bed = emoji('🛏️', { size: '260px', bottom: '12%', left: '50%', transform: 'translateX(-50%)' });
+      el.appendChild(bed);
+      // big squish pile! all friends overlapping
+      const sqs = [
+        ['🐱','pink','30%','0s'],
+        ['🐰','blue','42%','0.2s'],
+        ['🦄','purple','50%','0.4s'],
+        ['🐸','mint','58%','0.6s'],
+        ['🐻','yellow','64%','0.8s'],
+      ];
+      sqs.forEach(([f, c, left, delay], i) => {
+        const sq = squish(f, c, { cls: 'breathe', size: '95px', bottom: (28 + (i%2)*8) + '%', left });
+        sq.style.animationDelay = delay;
+        sq.style.zIndex = 5 + i;
+        el.appendChild(sq);
+      });
+      for (let i = 0; i < 6; i++) {
+        const z = emoji('💤', { cls: 'float-up', size: '32px', bottom: '46%', left: (40 + Math.random()*30) + '%', dur: '3s' });
+        z.style.animationDelay = (i * 0.5) + 's';
+        el.appendChild(z);
+      }
+      for (let i = 0; i < 15; i++) {
+        const s = emoji('✨', { cls: 'twinkle', size: '20px' });
+        s.style.top = (Math.random()*40) + 'vh';
+        s.style.left = (Math.random()*100) + 'vw';
+        s.style.animationDelay = (Math.random()*2) + 's';
+        el.appendChild(s);
+      }
+      el.appendChild(caption('🌙 Goodnight friends!'));
+    },
+  },
+];
+
+// ---- Movie engine ----
+let sceneIdx = 0;
+let sceneStart = 0;
+let paused = false;
+let pauseAccum = 0;
+let pauseStart = 0;
+let rafId = null;
+
+function totalDuration() { return SCENES.reduce((a, s) => a + s.duration, 0); }
+
+function loadScene(i) {
+  if (i >= SCENES.length) {
+    showTheEnd();
+    return;
+  }
+  sceneIdx = i;
+  const s = SCENES[i];
+  stage.style.background = s.bg;
+  sceneEl.innerHTML = '';
+  s.build(sceneEl);
+  sceneIndicator.textContent = `Scene ${i + 1} of ${SCENES.length}`;
+  sceneStart = performance.now();
+  pauseAccum = 0;
+  // narrate using the pre-recorded MP3 for this scene
+  playVoiceFile(`voice/scene${i + 1}.mp3`);
+}
+
+function step(now) {
+  if (!paused) {
+    const elapsed = now - sceneStart - pauseAccum;
+    const s = SCENES[sceneIdx];
+    if (elapsed >= s.duration) {
+      loadScene(sceneIdx + 1);
+    }
+    // overall progress
+    let totalElapsed = 0;
+    for (let i = 0; i < sceneIdx; i++) totalElapsed += SCENES[i].duration;
+    totalElapsed += Math.min(elapsed, s ? s.duration : 0);
+    progressBar.style.width = (totalElapsed / totalDuration() * 100) + '%';
+  }
+  rafId = requestAnimationFrame(step);
+}
+
+function showTheEnd() {
+  theEnd.classList.remove('hidden');
+  progressBar.style.width = '100%';
+  cancelAnimationFrame(rafId);
+  rafId = null;
+  if (synth) synth.cancel();
+  playVoiceFile('voice/scene_end.mp3');
+}
+
+function startMovie() {
+  ensureAudio();
+  if (synth) synth.cancel();
+  theEnd.classList.add('hidden');
+  loadScene(0);
+  if (!rafId) rafId = requestAnimationFrame(step);
+}
+
+document.getElementById('pause-btn').addEventListener('click', (e) => {
+  paused = !paused;
+  if (paused) {
+    pauseStart = performance.now();
+    e.target.textContent = '▶ Play';
+    if (synth) synth.pause();
+  } else {
+    pauseAccum += performance.now() - pauseStart;
+    e.target.textContent = '⏸ Pause';
+    if (synth) synth.resume();
+  }
+});
+
+document.getElementById('restart-btn').addEventListener('click', startMovie);
+document.getElementById('replay-btn').addEventListener('click', startMovie);
+
+// Click-to-start screen ensures the browser allows audio + speech
+const startScreen = document.getElementById('start-screen');
+const voiceStatus = document.getElementById('voice-status');
+
+document.getElementById('test-voice-btn').addEventListener('click', () => {
+  ensureAudio();
+  voiceStatus.innerHTML = '🎙️ <b>Listening...</b> Did you hear the kitty narrator?';
+  voiceStatus.style.color = '#bff5b5';
+  playVoiceFile('voice/scene1.mp3');
+});
+
+document.getElementById('start-btn').addEventListener('click', () => {
+  ensureAudio();
+  startScreen.classList.add('hidden');
+  startMovie();
+});
+
+// Don't auto-start — wait for the user to click START
+</script>
+</body>
+</html>
