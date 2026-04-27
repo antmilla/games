@@ -1,0 +1,1608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Flying Cat 🐱✨</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    height: 100%;
+    background: linear-gradient(180deg, #5fd9ff 0%, #ffd6f5 100%);
+    overflow: hidden;
+    font-family: "Comic Sans MS", "Trebuchet MS", sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  canvas {
+    display: block;
+    background: linear-gradient(180deg, #5fd9ff 0%, #ffd6f5 100%);
+    box-shadow: 0 0 30px rgba(0,0,0,0.3);
+    border-radius: 8px;
+  }
+  #title {
+    position: fixed;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #fff;
+    font-size: 26px;
+    text-shadow: 2px 2px 0 #ff5fc6, 4px 4px 0 #2a0033;
+    pointer-events: none;
+    letter-spacing: 1px;
+  }
+  #score {
+    position: fixed;
+    top: 14px;
+    left: 14px;
+    color: #fff;
+    font-size: 28px;
+    font-weight: bold;
+    text-shadow: 2px 2px 0 #2c7aa8, 4px 4px 0 #003d5a;
+    pointer-events: none;
+  }
+  #best {
+    position: fixed;
+    top: 18px;
+    right: 14px;
+    color: #fff5cc;
+    font-size: 18px;
+    text-shadow: 2px 2px 0 #80005a;
+    pointer-events: none;
+  }
+  #help {
+    position: fixed;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #fff;
+    font-size: 18px;
+    background: rgba(40,0,60,0.65);
+    padding: 8px 18px;
+    border-radius: 14px;
+    pointer-events: none;
+    border: 2px solid #ff5fc6;
+  }
+
+  .screen {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(40, 0, 60, 0.94);
+    color: #fff;
+    border: 4px solid #ff5fc6;
+    border-radius: 22px;
+    padding: 22px 28px;
+    text-align: center;
+    pointer-events: auto;
+    box-shadow: 0 8px 0 #80005a;
+    max-width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    z-index: 100;
+  }
+  /* Make the START / entry screen full-screen and rainbow! */
+  #start-screen {
+    top: 0;
+    left: 0;
+    transform: none;
+    width: 100vw;
+    height: 100vh;
+    max-width: 100vw;
+    max-height: 100vh;
+    background: linear-gradient(135deg, #ff5fc6 0%, #ff8e3c 20%, #ffe14c 40%, #5fd96b 60%, #5fa8ff 80%, #c46bff 100%);
+    background-size: 300% 300%;
+    animation: rainbowShift 12s ease-in-out infinite;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 30px 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+  @keyframes rainbowShift {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  #start-screen h2 {
+    font-size: 56px;
+    text-shadow: 3px 3px 0 #2a0040, 6px 6px 0 #80005a;
+    margin-bottom: 18px;
+  }
+  #start-screen p {
+    font-size: 22px;
+    text-shadow: 2px 2px 0 #2a0040;
+    margin: 8px 0;
+  }
+  #start-screen .big-btn {
+    font-size: 32px;
+    padding: 18px 38px;
+    margin: 14px;
+  }
+  #start-screen #start-btn {
+    font-size: 36px;
+    padding: 20px 50px;
+  }
+  /* sparkle decorations on entry screen */
+  #start-screen::before, #start-screen::after {
+    content: '✨ 🌟 ✨ ⭐ ✨';
+    position: absolute;
+    font-size: 36px;
+    opacity: 0.7;
+    pointer-events: none;
+  }
+  #start-screen::before { top: 8%; left: 4%; }
+  #start-screen::after  { bottom: 8%; right: 4%; }
+  .screen h2 {
+    margin: 0 0 12px;
+    font-size: 30px;
+    text-shadow: 2px 2px 0 #2a0040;
+  }
+  .screen p { margin: 6px 0; font-size: 18px; line-height: 1.4; }
+
+  .big-btn {
+    margin: 8px 6px;
+    background: linear-gradient(#ffd6f5, #ff8ed4);
+    color: #4a0033;
+    border: 4px solid #ff5fc6;
+    border-radius: 16px;
+    padding: 12px 26px;
+    font-family: inherit;
+    font-size: 22px;
+    cursor: pointer;
+    box-shadow: 0 5px 0 #80005a;
+    text-shadow: 1px 1px 0 #ffe6f5;
+    font-weight: bold;
+  }
+  .big-btn:active { transform: translateY(2px); box-shadow: 0 3px 0 #80005a; }
+  .big-btn.shop { background: linear-gradient(#cdfaff, #5fd9ff); border-color: #2c7aa8; color: #002a3d; box-shadow: 0 5px 0 #003d5a; text-shadow: 1px 1px 0 #d6f5ff; }
+  .big-btn.bug-shop { background: linear-gradient(#d6ffcd, #5fd96b); border-color: #1a5a1a; color: #1a4a1a; box-shadow: 0 5px 0 #1a5a1a; text-shadow: 1px 1px 0 #f0fff0; }
+  .big-btn.bg-shop {
+    background: linear-gradient(90deg, #ff5fc6, #ffe14c, #5fd96b, #5fa8ff, #c46bff);
+    border-color: #4a0033;
+    color: #2a0033;
+    box-shadow: 0 5px 0 #4a0033;
+    text-shadow: 1px 1px 0 #fff5cc;
+  }
+
+  /* shop options */
+  .opt-section {
+    margin: 12px 0;
+    padding: 8px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 12px;
+  }
+  .opt-section h3 { margin: 0 0 8px; font-size: 18px; color: #ffd6f5; }
+  .opt-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .opt-btn {
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+    border: 3px solid transparent;
+    border-radius: 12px;
+    padding: 8px 14px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 16px;
+    transition: transform 0.08s;
+  }
+  .opt-btn:hover { transform: scale(1.05); }
+  .opt-btn.selected {
+    border-color: #ffe14c;
+    background: rgba(255,225,76,0.25);
+    box-shadow: 0 0 12px rgba(255,225,76,0.6);
+  }
+  .opt-btn.locked {
+    opacity: 0.6;
+    background: rgba(80,30,50,0.4);
+  }
+  .opt-btn.locked .cost { color: #ffe14c; font-weight: bold; }
+  .stars-display {
+    background: rgba(0,0,0,0.5);
+    color: #ffe14c;
+    padding: 8px 16px;
+    border-radius: 12px;
+    border: 2px solid #ffe14c;
+    margin: 8px auto;
+    display: inline-block;
+    font-size: 18px;
+  }
+  .preview-canvas {
+    background: linear-gradient(180deg, #cdfaff, #ffd6f5);
+    border-radius: 12px;
+    margin: 10px auto;
+    display: block;
+    border: 3px solid #ffd6f5;
+  }
+
+  .hidden { display: none !important; }
+
+  /* Game Over screen — dramatic red/dark theme */
+  #gameover-screen {
+    background: linear-gradient(135deg, #2a0033 0%, #80005a 40%, #c44 100%);
+    border-color: #ffd700;
+    color: #fff;
+    width: auto;
+    min-width: 320px;
+    padding: 28px 36px;
+    box-shadow: 0 8px 0 #4a0000;
+    animation: goShake 0.5s ease-out;
+  }
+  @keyframes goShake {
+    0%   { transform: translate(-50%, -50%) scale(0.8) rotate(-2deg); opacity: 0; }
+    20%  { transform: translate(-52%, -48%) scale(1.05) rotate(1deg); opacity: 1; }
+    40%  { transform: translate(-48%, -52%) scale(1.0)  rotate(-1deg); }
+    60%  { transform: translate(-50%, -50%) scale(1.02) rotate(0.5deg); }
+    100% { transform: translate(-50%, -50%) scale(1.0)  rotate(0deg); opacity: 1; }
+  }
+  #gameover-screen h2 {
+    font-size: 56px;
+    color: #ffd700;
+    text-shadow: 3px 3px 0 #4a0000, 6px 6px 0 #2a0033;
+    margin: 4px 0 8px;
+    letter-spacing: 2px;
+  }
+  #gameover-screen p {
+    font-size: 22px;
+    color: #fff5cc;
+  }
+  .go-emoji {
+    font-size: 110px;
+    line-height: 1;
+    margin-top: 4px;
+    animation: goEmojiBob 2s ease-in-out infinite alternate;
+    filter: drop-shadow(0 6px 0 rgba(0,0,0,0.4));
+  }
+  @keyframes goEmojiBob {
+    from { transform: translateY(0) rotate(-3deg); }
+    to   { transform: translateY(-6px) rotate(3deg); }
+  }
+  .go-stats {
+    margin: 16px 0;
+    background: rgba(0,0,0,0.4);
+    padding: 12px 18px;
+    border-radius: 14px;
+    border: 2px solid #ffd700;
+  }
+  .go-stat {
+    font-size: 20px;
+    margin: 4px 0;
+    color: #fff5cc;
+  }
+  .go-newbest {
+    font-size: 24px;
+    color: #ffe14c;
+    text-shadow: 2px 2px 0 #80005a;
+    animation: goPulse 0.6s ease-in-out infinite alternate;
+    margin-top: 6px;
+  }
+  @keyframes goPulse {
+    from { transform: scale(1); }
+    to   { transform: scale(1.1); }
+  }
+  #go-retry-btn { background: linear-gradient(#ffd6f5, #ff8ed4); }
+  #go-menu-btn  { background: linear-gradient(#cdfaff, #5fd9ff); }
+
+  /* Pause button (top center, near title) */
+  #pause-btn {
+    position: fixed;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(40,0,60,0.7);
+    color: #fff;
+    border: 3px solid #ffe14c;
+    border-radius: 50%;
+    width: 50px; height: 50px;
+    font-size: 24px;
+    cursor: pointer;
+    z-index: 60;
+    font-family: inherit;
+    box-shadow: 0 4px 0 #80005a;
+  }
+  #pause-btn:active { transform: translateX(-50%) translateY(2px); box-shadow: 0 2px 0 #80005a; }
+
+  /* Pause screen */
+  #pause-screen {
+    background: rgba(40, 0, 60, 0.92);
+    border-color: #ffe14c;
+  }
+  #pause-screen h2 {
+    color: #ffe14c;
+    font-size: 48px;
+  }
+
+  #countdown {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 220px;
+    font-weight: bold;
+    color: #ffe14c;
+    text-shadow: 4px 4px 0 #ff5fc6, 8px 8px 0 #2a0033, 0 0 30px #fff;
+    pointer-events: none;
+    z-index: 90;
+    display: none;
+    animation: countPop 1s ease-out forwards;
+  }
+  @keyframes countPop {
+    0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.3) rotate(-15deg); }
+    30%  { opacity: 1; transform: translate(-50%, -50%) scale(1.2) rotate(5deg); }
+    70%  { opacity: 1; transform: translate(-50%, -50%) scale(1.0) rotate(0deg); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(1.4) rotate(0deg); }
+  }
+</style>
+</head>
+<body>
+<canvas id="game" width="600" height="700"></canvas>
+<div id="title">🐱✨ FLYING CAT ✨🐱</div>
+<div id="score">⭐ Stars: <span id="score-num">0</span> &nbsp;<span id="run-num" style="opacity:0.7;font-size:18px;">(+0)</span></div>
+<div id="best">Best run: <span id="best-num">0</span></div>
+<div id="help">SPACE or CLICK to flap! &nbsp;•&nbsp; B to pause 🐾</div>
+<div id="countdown"></div>
+<button id="pause-btn" class="hidden" title="Pause (B)">⏸</button>
+
+<!-- PAUSE OVERLAY -->
+<div id="pause-screen" class="screen hidden">
+  <h2>⏸ PAUSED</h2>
+  <p>The kitty is taking a little break!</p>
+  <button class="big-btn" id="resume-btn">▶ RESUME</button>
+  <button class="big-btn shop" id="pause-menu-btn">🏠 MENU</button>
+</div>
+
+<!-- START SCREEN -->
+<div id="start-screen" class="screen">
+  <h2>🐱 Flying Cat! 🐱</h2>
+  <p>Tap <b>SPACE</b> or <b>CLICK</b> to flap!</p>
+  <p>🐟 Catch fish &nbsp;•&nbsp; 🐛 Don't hit bugs!</p>
+  <p>Press <b>B</b> or tap <b>⏸</b> to pause!</p>
+  <div>
+    <button class="big-btn" id="start-btn">▶ START!</button>
+  </div>
+  <div>
+    <button class="big-btn shop" id="cat-shop-btn">🐱 Cat Shop</button>
+    <button class="big-btn bug-shop" id="bug-shop-btn">🐛 Bug Shop</button>
+    <button class="big-btn bg-shop" id="bg-shop-btn">🌈 Background Shop</button>
+  </div>
+  <button id="reset-btn" style="margin-top:18px;background:rgba(0,0,0,0.4);color:#fff;border:2px solid rgba(255,255,255,0.6);border-radius:10px;padding:6px 14px;font-family:inherit;font-size:14px;cursor:pointer;">🗑 Reset Progress</button>
+</div>
+
+<!-- CAT SHOP -->
+<div id="cat-shop" class="screen hidden">
+  <h2>🐱 Cat Shop 🐱</h2>
+  <canvas id="cat-preview" class="preview-canvas" width="200" height="180"></canvas>
+
+  <div class="opt-section">
+    <h3>🐾 Animal</h3>
+    <div class="opt-row" id="cat-animal-opts"></div>
+  </div>
+  <div class="opt-section">
+    <h3>🎨 Color</h3>
+    <div class="opt-row" id="cat-color-opts"></div>
+  </div>
+  <div class="opt-section">
+    <h3>👑 Hat</h3>
+    <div class="opt-row" id="cat-hat-opts"></div>
+  </div>
+  <div class="opt-section">
+    <h3>👁 Eyes</h3>
+    <div class="opt-row" id="cat-eye-opts"></div>
+  </div>
+
+  <button class="big-btn" id="cat-shop-back">✓ DONE</button>
+</div>
+
+<!-- GAME OVER SCREEN -->
+<div id="gameover-screen" class="screen hidden">
+  <div class="go-emoji">😿</div>
+  <h2 id="go-title">OH NO!</h2>
+  <p id="go-msg">You bumped into a bug! 🐛💥</p>
+  <div class="go-stats">
+    <div class="go-stat">⭐ Score: <b><span id="go-score">0</span></b></div>
+    <div class="go-stat">🏆 Best: <b><span id="go-best">0</span></b></div>
+    <div id="go-newbest" class="go-newbest hidden">🎉 NEW BEST! 🎉</div>
+  </div>
+  <div>
+    <button class="big-btn" id="go-retry-btn">▶ TRY AGAIN</button>
+    <button class="big-btn shop" id="go-menu-btn">🏠 MENU</button>
+  </div>
+</div>
+
+<!-- BUG SHOP -->
+<div id="bug-shop" class="screen hidden">
+  <h2>🐛 Bug Shop 🐛</h2>
+  <canvas id="bug-preview" class="preview-canvas" width="200" height="180"></canvas>
+
+  <div class="opt-section">
+    <h3>🐞 Bug Type</h3>
+    <div class="opt-row" id="bug-type-opts"></div>
+  </div>
+  <div class="opt-section">
+    <h3>🎨 Color</h3>
+    <div class="opt-row" id="bug-color-opts"></div>
+  </div>
+
+  <button class="big-btn bug-shop" id="bug-shop-back">✓ DONE</button>
+</div>
+
+<!-- BACKGROUND SHOP -->
+<div id="bg-shop" class="screen hidden">
+  <h2>🌈 Background Shop 🌈</h2>
+  <div id="bg-stars-display" class="stars-display">⭐ Stars: <b><span id="bg-stars-num">0</span></b></div>
+  <canvas id="bg-preview" class="preview-canvas" width="240" height="160"></canvas>
+  <div class="opt-section">
+    <h3>🎨 Background</h3>
+    <div class="opt-row" id="bg-type-opts"></div>
+  </div>
+  <p id="bg-shop-msg" style="font-size:14px;opacity:0.8;min-height:18px;"></p>
+  <button class="big-btn bg-shop" id="bg-shop-back">✓ DONE</button>
+</div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const W = canvas.width;
+const H = canvas.height;
+
+// ---- Customization (loaded from localStorage) ----
+const SAVED = JSON.parse(localStorage.getItem('flying-cat-settings') || '{}');
+const settings = {
+  cat: {
+    animal: SAVED.cat?.animal || 'cat',
+    color: SAVED.cat?.color || 'pink',
+    hat:   SAVED.cat?.hat   || 'none',
+    eye:   SAVED.cat?.eye   || 'green',
+  },
+  bug: {
+    type:  SAVED.bug?.type  || 'caterpillar',
+    color: SAVED.bug?.color || 'green',
+  },
+  bg: {
+    type:  SAVED.bg?.type  || 'sky',
+  },
+};
+function saveSettings() {
+  localStorage.setItem('flying-cat-settings', JSON.stringify(settings));
+}
+
+// available options
+const CAT_COLORS = {
+  pink:   { body: '#ff5fc6', stroke: '#80005a', innerEar: '#ffd6f5' },
+  orange: { body: '#ff8e3c', stroke: '#a04400', innerEar: '#ffd6a3' },
+  white:  { body: '#ffffff', stroke: '#888888', innerEar: '#ffe6f5' },
+  gray:   { body: '#9aa5b1', stroke: '#3a4555', innerEar: '#cdd6e1' },
+  black:  { body: '#3a3a4a', stroke: '#000000', innerEar: '#ff5fc6' },
+  rainbow:{ body: 'rainbow', stroke: '#80005a', innerEar: '#ffd6f5' },
+};
+const CAT_HATS = ['none','crown','witch','bow','party'];
+const CAT_EYES = ['green','blue','black','gold','pink'];
+const ANIMAL_TYPES = ['cat','dog','bird','bear'];
+
+const BG_TYPES = {
+  sky:    { name: '☀️ Sky',     grad: ['#5fd9ff', '#ffd6f5'],                    cost: 0 },
+  sunset: { name: '🌅 Sunset',  grad: ['#ff5fc6', '#ff8e3c', '#ffe14c'],          cost: 5 },
+  forest: { name: '🌲 Forest',  grad: ['#bff5b5', '#3a8a3a'],                    cost: 5 },
+  night:  { name: '🌙 Night',   grad: ['#001f3f', '#0a0033'], stars: true, moon: true,   cost: 7 },
+  space:  { name: '🚀 Space',   grad: ['#000000', '#0a0033'], stars: true, planet: true, cost: 15 },
+  ocean:  { name: '🌊 Ocean',   grad: ['#5fd9ff', '#003d5a'], bubbles: true,             cost: 45 },
+  rainbow:{ name: '🌈 Rainbow', grad: 'rainbow',                                        cost: 50 },
+  candy:  { name: '🍭 Candy',   grad: ['#ffd6f5', '#c46bff'], hearts: true,             cost: 100 },
+};
+
+// ----- Persistent progress (stars + unlocked backgrounds) -----
+const PROGRESS = JSON.parse(localStorage.getItem('flying-cat-progress') || '{}');
+let totalStars = PROGRESS.stars || 0;
+let unlocked = new Set(PROGRESS.unlocked || ['sky']);
+unlocked.add('sky');   // always unlocked
+function saveProgress() {
+  localStorage.setItem('flying-cat-progress', JSON.stringify({
+    stars: totalStars,
+    unlocked: [...unlocked],
+  }));
+}
+// If the saved BG type isn't unlocked (e.g. data was wiped), fall back to sky
+if (!unlocked.has(settings.bg.type)) settings.bg.type = 'sky';
+
+const BUG_TYPES = ['caterpillar','beetle','spider','ladybug','ant','copter'];
+const BUG_COLORS = ['green','red','blue','purple','yellow','black'];
+
+// ---- Game state ----
+const cat = {
+  x: 140, y: H / 2, r: 28, vy: 0, flapPhase: 0, rotation: 0,
+};
+const GRAVITY = 0.45;
+const FLAP_VEL = -8.5;
+const SCROLL_SPEED = 3;
+
+let pipes = [];
+let fishes = [];
+let clouds = [];
+let score = 0;
+let best = +(localStorage.getItem('flying-cat-best') || 0);
+let alive = true;
+let started = false;
+let paused = false;
+const scoreEl = document.getElementById('score-num');
+const runEl = document.getElementById('run-num');
+const bestEl = document.getElementById('best-num');
+bestEl.textContent = best;
+function refreshStars() {
+  scoreEl.textContent = totalStars;
+  runEl.textContent = `(+${score})`;
+}
+refreshStars();
+
+for (let i = 0; i < 5; i++) {
+  clouds.push({
+    x: Math.random() * W, y: Math.random() * (H * 0.6),
+    size: 30 + Math.random() * 30, speed: 0.4 + Math.random() * 0.6,
+  });
+}
+
+// ---- Sound ----
+let audioCtx = null;
+function ensureAudio() {
+  if (!audioCtx) try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+}
+function tone(f, d=0.12, t='sine', v=0.16) {
+  ensureAudio();
+  if (!audioCtx) return;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = t; o.frequency.value = f;
+  g.gain.value = v;
+  g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + d);
+  o.connect(g).connect(audioCtx.destination);
+  o.start(); o.stop(audioCtx.currentTime + d);
+}
+const sFlap = () => tone(700, 0.07, 'square', 0.10);
+const sFish = () => { tone(1200, 0.10, 'triangle', 0.16); setTimeout(()=>tone(1600, 0.10, 'triangle', 0.14), 70); };
+const sBoom = () => tone(180, 0.30, 'sawtooth', 0.20);
+const sClick = () => tone(660, 0.08, 'square', 0.12);
+
+// ---- Spawning ----
+function spawnPipes() {
+  let safety = 0;
+  while ((pipes.length < 4 || pipes[pipes.length - 1].x < W + 200) && safety++ < 20) {
+    const lastX = pipes.length ? pipes[pipes.length - 1].x : 600;
+    const x = lastX + 280 + Math.random() * 80;
+    const gapY = 140 + Math.random() * (H - 360);
+    const gapH = 200;
+    pipes.push({ x, gapY, gapH, passed: false });
+    if (Math.random() < 0.7) {
+      fishes.push({
+        x: x + 50 + Math.random() * 80,
+        y: gapY + gapH / 2 + (Math.random() - 0.5) * 60,
+        collected: false,
+        bob: Math.random() * Math.PI * 2,
+      });
+    }
+  }
+}
+spawnPipes();
+
+// ---- Input ----
+function flap() {
+  if (!alive || !started) return;
+  cat.vy = FLAP_VEL;
+  cat.flapPhase = 1.0;
+  sFlap();
+}
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    if (!alive) restart();
+    else if (!paused) flap();
+  }
+  if (e.code === 'KeyB' && started && alive) {
+    e.preventDefault();
+    togglePause();
+  }
+});
+canvas.addEventListener('click', () => {
+  ensureAudio();
+  if (!alive) restart();
+  else if (!paused) flap();
+});
+
+// Pause logic
+const pauseBtn = document.getElementById('pause-btn');
+const pauseScreen = document.getElementById('pause-screen');
+function togglePause() {
+  if (!started || !alive) return;
+  sClick();
+  if (!paused) {
+    paused = true;
+    pauseScreen.classList.remove('hidden');
+  } else {
+    // Resume → hide pause screen, do 3-2-1, then unpause
+    pauseScreen.classList.add('hidden');
+    runCountdown(() => { paused = false; });
+  }
+}
+pauseBtn.addEventListener('click', togglePause);
+document.getElementById('resume-btn').addEventListener('click', togglePause);
+document.getElementById('pause-menu-btn').addEventListener('click', () => {
+  sClick();
+  paused = false;
+  started = false;
+  alive = false;
+  pauseScreen.classList.add('hidden');
+  pauseBtn.classList.add('hidden');
+  showScreen(startScreen);
+});
+
+// ---- Lifecycle ----
+const startScreen = document.getElementById('start-screen');
+const catShop = document.getElementById('cat-shop');
+const bugShop = document.getElementById('bug-shop');
+const bgShop = document.getElementById('bg-shop');
+
+function showScreen(el) {
+  [startScreen, catShop, bugShop, bgShop, document.getElementById('gameover-screen'), document.getElementById('pause-screen')].forEach(s => s.classList.add('hidden'));
+  if (el) el.classList.remove('hidden');
+}
+
+document.getElementById('start-btn').addEventListener('click', () => {
+  ensureAudio(); sClick();
+  showScreen(null);
+  beginGameWithCountdown();
+});
+
+const countdownEl = document.getElementById('countdown');
+
+// Reusable 3-2-1-GO countdown. Calls onGo() at "GO!".
+function runCountdown(onGo) {
+  let count = 3;
+  const showStep = (text, freq) => {
+    countdownEl.style.display = 'block';
+    countdownEl.style.animation = 'none';
+    void countdownEl.offsetWidth;       // restart animation
+    countdownEl.style.animation = 'countPop 1s ease-out forwards';
+    countdownEl.textContent = text;
+    tone(freq, 0.25, 'triangle', 0.18);
+  };
+  showStep('3', 440);
+  const id = setInterval(() => {
+    count--;
+    if (count === 2) showStep('2', 550);
+    else if (count === 1) showStep('1', 660);
+    else if (count === 0) {
+      showStep('GO!', 880);
+      onGo();
+    } else {
+      clearInterval(id);
+      countdownEl.style.display = 'none';
+    }
+  }, 900);
+}
+
+function beginGameWithCountdown() {
+  cat.x = 140; cat.y = H/2; cat.vy = 0; cat.rotation = 0;
+  pipes = []; fishes = [];
+  spawnPipes();
+  score = 0; refreshStars();
+  alive = true;
+  started = false;        // will become true at "GO!"
+  paused = false;
+  pauseBtn.classList.remove('hidden');
+  runCountdown(() => { started = true; });
+}
+document.getElementById('cat-shop-btn').addEventListener('click', () => { ensureAudio(); sClick(); showScreen(catShop); renderCatPreview(); });
+document.getElementById('bug-shop-btn').addEventListener('click', () => { ensureAudio(); sClick(); showScreen(bugShop); renderBugPreview(); startBugPreviewLoop(); });
+document.getElementById('bg-shop-btn').addEventListener('click', () => { ensureAudio(); sClick(); showScreen(bgShop); refreshBgShop(); bgShopMsg.textContent = ''; startBgPreviewLoop(); });
+document.getElementById('bg-shop-back').addEventListener('click', () => { sClick(); saveSettings(); stopBgPreviewLoop(); showScreen(startScreen); });
+document.getElementById('cat-shop-back').addEventListener('click', () => { sClick(); saveSettings(); showScreen(startScreen); });
+document.getElementById('bug-shop-back').addEventListener('click', () => { sClick(); saveSettings(); stopBugPreviewLoop(); showScreen(startScreen); });
+
+function restart() {
+  showScreen(null);
+  beginGameWithCountdown();
+}
+
+// ---- Update ----
+function update() {
+  clouds.forEach(c => { c.x -= c.speed; if (c.x < -80) { c.x = W + 80; c.y = Math.random() * (H * 0.6); } });
+  if (!started || !alive || paused) return;
+
+  cat.vy += GRAVITY;
+  cat.y += cat.vy;
+  cat.rotation = Math.max(-0.5, Math.min(1.0, cat.vy / 18));
+  cat.flapPhase = Math.max(0, cat.flapPhase - 0.08);
+
+  pipes.forEach(p => p.x -= SCROLL_SPEED);
+  fishes.forEach(f => { f.x -= SCROLL_SPEED; f.bob += 0.1; });
+
+  pipes = pipes.filter(p => p.x > -80);
+  fishes = fishes.filter(f => f.x > -40 && !f.collected);
+  spawnPipes();
+
+  for (const p of pipes) {
+    if (!p.passed && p.x + 40 < cat.x) {
+      p.passed = true;
+      score++;
+      totalStars++;
+      refreshStars();
+      saveProgress();
+      sFlap();
+    }
+    const inX = cat.x + cat.r > p.x && cat.x - cat.r < p.x + 80;
+    if (inX) {
+      if (cat.y - cat.r < p.gapY || cat.y + cat.r > p.gapY + p.gapH) die();
+    }
+  }
+
+  if (cat.y + cat.r > H - 20 || cat.y - cat.r < 0) die();
+
+  for (const f of fishes) {
+    if (!f.collected) {
+      const dx = f.x - cat.x;
+      const dy = f.y - cat.y;
+      if (Math.hypot(dx, dy) < cat.r + 20) {
+        f.collected = true;
+        score += 3;
+        totalStars += 3;
+        refreshStars();
+        saveProgress();
+        sFish();
+      }
+    }
+  }
+}
+
+const gameoverScreen = document.getElementById('gameover-screen');
+const goScoreEl = document.getElementById('go-score');
+const goBestEl = document.getElementById('go-best');
+const goNewBestEl = document.getElementById('go-newbest');
+const goEmojiEl = document.querySelector('.go-emoji');
+const goMsgEl = document.getElementById('go-msg');
+
+const DEATH_MESSAGES = [
+  { emoji: '😿', msg: 'You bumped into a bug! 🐛💥' },
+  { emoji: '🙀', msg: 'Whoa, that was close... too close! 💫' },
+  { emoji: '😵', msg: 'Crash landing! 🌳💥' },
+  { emoji: '😖', msg: 'The ground got in the way! 🌱' },
+  { emoji: '😭', msg: "Don't give up! Try again! 💖" },
+];
+
+function die() {
+  if (!alive) return;
+  alive = false;
+  paused = false;
+  pauseBtn.classList.add('hidden');
+  pauseScreen.classList.add('hidden');
+  sBoom();
+  let isNewBest = false;
+  if (score > best) {
+    best = score;
+    isNewBest = true;
+    localStorage.setItem('flying-cat-best', best);
+    bestEl.textContent = best;
+  }
+  // pick a random death message
+  const dm = DEATH_MESSAGES[Math.floor(Math.random() * DEATH_MESSAGES.length)];
+  goEmojiEl.textContent = dm.emoji;
+  goMsgEl.innerHTML = dm.msg;
+  goScoreEl.textContent = score;
+  goBestEl.textContent = best;
+  goNewBestEl.classList.toggle('hidden', !isNewBest);
+  showScreen(gameoverScreen);
+}
+
+document.getElementById('go-retry-btn').addEventListener('click', () => { sClick(); restart(); });
+document.getElementById('go-menu-btn').addEventListener('click', () => { sClick(); showScreen(startScreen); });
+
+// Reset progress (with confirmation)
+document.getElementById('reset-btn').addEventListener('click', () => {
+  ensureAudio(); sClick();
+  if (confirm('Reset everything? This will delete all your stars and unlocked backgrounds!')) {
+    totalStars = 0;
+    unlocked = new Set(['sky']);
+    settings.bg.type = 'sky';
+    best = 0;
+    localStorage.removeItem('flying-cat-progress');
+    localStorage.removeItem('flying-cat-best');
+    saveProgress();
+    saveSettings();
+    refreshStars();
+    bestEl.textContent = best;
+    refreshBgShop();
+    alert('All progress reset! 🌟 Starting fresh!');
+  }
+});
+
+// ---- Drawing helpers ----
+function drawClouds(targetCtx, w, h) {
+  targetCtx.fillStyle = 'rgba(255,255,255,0.85)';
+  clouds.forEach(c => {
+    targetCtx.beginPath();
+    targetCtx.arc(c.x, c.y, c.size * 0.6, 0, Math.PI*2);
+    targetCtx.arc(c.x + c.size * 0.5, c.y - c.size * 0.2, c.size * 0.5, 0, Math.PI*2);
+    targetCtx.arc(c.x - c.size * 0.5, c.y - c.size * 0.1, c.size * 0.45, 0, Math.PI*2);
+    targetCtx.arc(c.x + c.size * 0.2, c.y + c.size * 0.3, c.size * 0.4, 0, Math.PI*2);
+    targetCtx.fill();
+  });
+}
+
+function drawPipesOn(targetCtx) {
+  pipes.forEach(p => {
+    drawBugPipe(targetCtx, p.x, 0, p.gapY, true);
+    drawBugPipe(targetCtx, p.x, p.gapY + p.gapH, H - 20, false);
+  });
+}
+
+// Draw a column of bugs as the obstacle
+function drawBugPipe(targetCtx, x, top, bottom, flipped) {
+  const colorMap = {
+    green: '#3a8a3a', red: '#c44', blue: '#4a8aff',
+    purple: '#9b6cff', yellow: '#ffd700', black: '#222',
+  };
+  const c = colorMap[settings.bug.color] || '#3a8a3a';
+  // stack of bugs filling top->bottom
+  const bugSize = 60;
+  const bugs = Math.ceil((bottom - top) / bugSize);
+  for (let i = 0; i < bugs; i++) {
+    const bx = x + 40;   // center column
+    const by = flipped
+      ? bottom - i * bugSize - bugSize / 2
+      : top + i * bugSize + bugSize / 2;
+    drawBug(targetCtx, bx, by, bugSize / 2, c, settings.bug.type);
+  }
+}
+
+function drawBug(c2, x, y, r, color, type) {
+  // Each bug uses time-based animation so its body parts wiggle in place
+  const t = performance.now() / 200;
+  c2.save();
+  c2.translate(x, y);
+  if (type === 'caterpillar') {
+    // segments wave up and down (like crawling but in place)
+    for (let i = -1; i <= 1; i++) {
+      const yWave = Math.sin(t * 2 + i * 1.4) * r * 0.18;
+      c2.fillStyle = color;
+      c2.beginPath();
+      c2.arc(i * r * 0.7, yWave, r * 0.6, 0, Math.PI*2);
+      c2.fill();
+      c2.strokeStyle = '#000'; c2.lineWidth = 2; c2.stroke();
+    }
+    // eyes on the rightmost segment (waving with it)
+    const eyeY = Math.sin(t * 2 + 1.4) * r * 0.18 - r * 0.2;
+    c2.fillStyle = '#fff';
+    c2.beginPath(); c2.arc(r * 0.9, eyeY, r * 0.18, 0, Math.PI*2); c2.fill();
+    c2.fillStyle = '#000';
+    c2.beginPath(); c2.arc(r * 0.95, eyeY, r * 0.1, 0, Math.PI*2); c2.fill();
+  } else if (type === 'beetle') {
+    // body bobs gently
+    c2.save();
+    c2.translate(0, Math.sin(t) * r * 0.06);
+    c2.fillStyle = color;
+    c2.beginPath(); c2.ellipse(0, 0, r * 0.9, r * 0.7, 0, 0, Math.PI*2); c2.fill();
+    c2.strokeStyle = '#000'; c2.lineWidth = 2; c2.stroke();
+    // line down middle
+    c2.beginPath(); c2.moveTo(0, -r * 0.7); c2.lineTo(0, r * 0.7); c2.stroke();
+    // wiggling legs
+    for (let i = -1; i <= 1; i++) {
+      const wiggle = Math.sin(t * 3 + i * 0.6) * r * 0.12;
+      c2.beginPath();
+      c2.moveTo(-r * 0.7, i * r * 0.4);
+      c2.lineTo(-r * 1.1, i * r * 0.5 + wiggle);
+      c2.moveTo(r * 0.7, i * r * 0.4);
+      c2.lineTo(r * 1.1, i * r * 0.5 - wiggle);
+      c2.stroke();
+    }
+    c2.restore();
+  } else if (type === 'spider') {
+    // body
+    c2.fillStyle = color;
+    c2.beginPath(); c2.arc(0, 0, r * 0.55, 0, Math.PI*2); c2.fill();
+    c2.strokeStyle = '#000'; c2.lineWidth = 2; c2.stroke();
+    // 8 wiggling legs
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      const wiggle = Math.sin(t * 2.5 + i) * 0.25;
+      c2.beginPath();
+      c2.moveTo(0, 0);
+      c2.quadraticCurveTo(
+        Math.cos(a + wiggle) * r * 0.7,
+        Math.sin(a + wiggle) * r * 0.7,
+        Math.cos(a + wiggle) * r * 1.1,
+        Math.sin(a + wiggle) * r * 1.1
+      );
+      c2.stroke();
+    }
+    // blinking eyes — close briefly every few seconds
+    const blink = Math.sin(t * 0.8) > 0.95;
+    if (blink) {
+      c2.fillStyle = '#000';
+      c2.fillRect(-r * 0.32, -r * 0.1, r * 0.24, 1.5);
+      c2.fillRect(r * 0.08, -r * 0.1, r * 0.24, 1.5);
+    } else {
+      c2.fillStyle = '#fff';
+      c2.beginPath(); c2.arc(-r * 0.2, -r * 0.1, r * 0.16, 0, Math.PI*2); c2.fill();
+      c2.beginPath(); c2.arc(r * 0.2, -r * 0.1, r * 0.16, 0, Math.PI*2); c2.fill();
+      c2.fillStyle = '#000';
+      c2.beginPath(); c2.arc(-r * 0.18, -r * 0.1, r * 0.08, 0, Math.PI*2); c2.fill();
+      c2.beginPath(); c2.arc(r * 0.22, -r * 0.1, r * 0.08, 0, Math.PI*2); c2.fill();
+    }
+  } else if (type === 'ladybug') {
+    // body bobs
+    c2.save();
+    c2.translate(0, Math.sin(t) * r * 0.06);
+    c2.fillStyle = color;
+    c2.beginPath(); c2.arc(0, 0, r * 0.85, 0, Math.PI*2); c2.fill();
+    c2.strokeStyle = '#000'; c2.lineWidth = 2; c2.stroke();
+    // wing-cover line opens/closes a bit
+    const splitOffset = Math.sin(t * 0.7) * r * 0.06;
+    c2.beginPath();
+    c2.moveTo(splitOffset, -r * 0.85);
+    c2.lineTo(splitOffset, r * 0.85);
+    c2.stroke();
+    // black spots
+    c2.fillStyle = '#000';
+    [[-0.4, -0.3], [0.4, -0.3], [-0.4, 0.3], [0.4, 0.3]].forEach(([dx, dy]) => {
+      c2.beginPath(); c2.arc(dx * r, dy * r, r * 0.15, 0, Math.PI*2); c2.fill();
+    });
+    // little head bump (slightly tilts)
+    c2.save();
+    c2.translate(0, -r * 0.85);
+    c2.rotate(Math.sin(t * 1.5) * 0.15);
+    c2.fillStyle = '#000';
+    c2.beginPath(); c2.arc(0, 0, r * 0.3, 0, Math.PI*2); c2.fill();
+    c2.restore();
+    c2.restore();
+  } else if (type === 'ant') {
+    // body bobs
+    c2.save();
+    c2.translate(0, Math.sin(t * 1.5) * r * 0.05);
+    c2.fillStyle = color;
+    [[0.7, 0.55], [0, 0.45], [-0.7, 0.5]].forEach(([dx, sz]) => {
+      c2.beginPath(); c2.arc(dx * r, 0, sz * r, 0, Math.PI*2); c2.fill();
+      c2.strokeStyle = '#000'; c2.lineWidth = 2; c2.stroke();
+    });
+    // wiggling antennae
+    const wiggle1 = Math.sin(t * 3) * r * 0.18;
+    const wiggle2 = Math.sin(t * 3 + 1) * r * 0.18;
+    c2.beginPath(); c2.moveTo(r * 0.7, -r * 0.55); c2.lineTo(r * 1.0 + wiggle1, -r * 0.95); c2.stroke();
+    c2.beginPath(); c2.moveTo(r * 0.7, -r * 0.55); c2.lineTo(r * 1.2 + wiggle2, -r * 0.7); c2.stroke();
+    // wiggling legs
+    const legW = Math.sin(t * 4) * r * 0.18;
+    c2.beginPath();
+    c2.moveTo(0, r * 0.45); c2.lineTo(-r * 0.3 - legW, r * 0.95);
+    c2.moveTo(0, r * 0.45); c2.lineTo(r * 0.3 + legW, r * 0.95);
+    c2.stroke();
+    c2.restore();
+  } else if (type === 'copter') {
+    // Helicopter bug — round body + spinning blades on top
+    const t = performance.now() / 80;       // fast spin
+    // round body
+    c2.fillStyle = color;
+    c2.beginPath();
+    c2.arc(0, r * 0.1, r * 0.55, 0, Math.PI*2);
+    c2.fill();
+    c2.strokeStyle = '#000'; c2.lineWidth = 2; c2.stroke();
+    // little tail to the left
+    c2.fillStyle = color;
+    c2.fillRect(-r * 0.9, -r * 0.05, r * 0.45, r * 0.1);
+    c2.strokeRect(-r * 0.9, -r * 0.05, r * 0.45, r * 0.1);
+    // tail rotor (small spinning blade)
+    c2.save();
+    c2.translate(-r * 0.95, 0);
+    c2.rotate(t * 1.5);
+    c2.fillStyle = 'rgba(40,40,40,0.7)';
+    c2.fillRect(-r * 0.25, -r * 0.04, r * 0.5, r * 0.08);
+    c2.restore();
+    // top rotor mast
+    c2.fillStyle = '#222';
+    c2.fillRect(-r * 0.04, -r * 0.4, r * 0.08, r * 0.3);
+    // big spinning rotor on top (cross + motion blur)
+    c2.save();
+    c2.translate(0, -r * 0.45);
+    c2.rotate(t);
+    c2.fillStyle = 'rgba(40,40,40,0.55)';
+    c2.beginPath(); c2.ellipse(0, 0, r * 1.1, r * 0.1, 0, 0, Math.PI*2); c2.fill();
+    c2.beginPath(); c2.ellipse(0, 0, r * 0.1, r * 1.1, 0, 0, Math.PI*2); c2.fill();
+    c2.restore();
+    // spinning halo (motion blur effect)
+    c2.strokeStyle = 'rgba(40,40,40,0.2)';
+    c2.lineWidth = r * 0.12;
+    c2.beginPath();
+    c2.arc(0, -r * 0.45, r * 1.05, 0, Math.PI*2);
+    c2.stroke();
+    // big eye
+    c2.fillStyle = '#fff';
+    c2.beginPath(); c2.arc(r * 0.2, r * 0.05, r * 0.15, 0, Math.PI*2); c2.fill();
+    c2.fillStyle = '#000';
+    c2.beginPath(); c2.arc(r * 0.22, r * 0.05, r * 0.08, 0, Math.PI*2); c2.fill();
+    // smile
+    c2.strokeStyle = '#000'; c2.lineWidth = 1.5;
+    c2.beginPath(); c2.arc(0, r * 0.2, r * 0.15, 0.2, Math.PI - 0.2); c2.stroke();
+  }
+  c2.restore();
+}
+
+function drawGround() {
+  ctx.fillStyle = '#3a8a3a';
+  ctx.fillRect(0, H - 20, W, 20);
+  ctx.fillStyle = '#5fd96b';
+  ctx.fillRect(0, H - 20, W, 6);
+}
+
+function drawFishes() {
+  fishes.forEach(f => {
+    if (f.collected) return;
+    const bob = Math.sin(f.bob) * 4;
+    ctx.save();
+    ctx.translate(f.x, f.y + bob);
+    const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, 30);
+    grad.addColorStop(0, 'rgba(255,200,140,0.6)');
+    grad.addColorStop(1, 'rgba(255,200,140,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(0, 0, 30, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#ff8e3c';
+    ctx.beginPath(); ctx.ellipse(0, 0, 18, 12, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(-15, 0); ctx.lineTo(-25, -10); ctx.lineTo(-25, 10); ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(8, -3, 3, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.arc(9, -3, 1.5, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  });
+}
+
+function drawCat(c2, cx, cy, scale = 1, flapping = false, rotation = 0) {
+  // wrapper kept for old callers — delegates to drawAnimal
+  drawAnimal(c2, cx, cy, scale, flapping, rotation);
+}
+
+function drawAnimal(c2, cx, cy, scale = 1, flapping = false, rotation = 0) {
+  // SIDE VIEW — animal stands on 4 legs, facing RIGHT
+  const colors = CAT_COLORS[settings.cat.color];
+  const animal = settings.cat.animal;
+  c2.save();
+  c2.translate(cx, cy);
+  c2.rotate(rotation);
+  c2.scale(scale, scale);
+
+  // body fill (rainbow support)
+  let bodyFill;
+  if (colors.body === 'rainbow') {
+    bodyFill = c2.createLinearGradient(-30, -20, 30, 20);
+    bodyFill.addColorStop(0, '#ff5fc6');
+    bodyFill.addColorStop(0.25, '#ffe14c');
+    bodyFill.addColorStop(0.5, '#5fd96b');
+    bodyFill.addColorStop(0.75, '#5fa8ff');
+    bodyFill.addColorStop(1, '#c46bff');
+  } else {
+    bodyFill = colors.body;
+  }
+  const stroke = colors.stroke;
+  const flatBody = colors.body === 'rainbow' ? '#ff5fc6' : colors.body;
+
+  // ============ TAIL (back-most) ============
+  c2.strokeStyle = stroke; c2.lineWidth = 4; c2.lineCap = 'round';
+  if (animal === 'cat') {
+    c2.beginPath();
+    c2.moveTo(-22, 4); c2.quadraticCurveTo(-38, -2, -32, -16);
+    c2.stroke();
+  } else if (animal === 'dog') {
+    c2.beginPath();
+    c2.moveTo(-22, 2); c2.quadraticCurveTo(-34, -10, -28, -18);
+    c2.stroke();
+  } else if (animal === 'bird') {
+    c2.fillStyle = bodyFill;
+    c2.beginPath();
+    c2.moveTo(-22, -2);
+    c2.lineTo(-38, -8);
+    c2.lineTo(-38, 6);
+    c2.lineTo(-22, 8);
+    c2.closePath();
+    c2.fill(); c2.stroke();
+  } else if (animal === 'bear') {
+    c2.fillStyle = flatBody;
+    c2.beginPath(); c2.arc(-24, 6, 5, 0, Math.PI*2); c2.fill(); c2.stroke();
+  }
+
+  // ============ BACK LEGS (slightly offset & darker for depth) ============
+  if (animal !== 'bird') {
+    c2.fillStyle = stroke;
+    c2.fillRect(-14, 14, 5, 14);
+    c2.fillRect(8, 14, 5, 14);
+    // tiny paws
+    c2.beginPath(); c2.arc(-11.5, 28, 4, 0, Math.PI); c2.fill();
+    c2.beginPath(); c2.arc(10.5, 28, 4, 0, Math.PI); c2.fill();
+  }
+
+  // ============ BODY (oval, side-view) ============
+  c2.fillStyle = bodyFill;
+  c2.beginPath();
+  c2.ellipse(0, 5, 24, 14, 0, 0, Math.PI*2);
+  c2.fill();
+  c2.strokeStyle = stroke; c2.lineWidth = 3; c2.stroke();
+  // belly highlight (lighter, lower part)
+  c2.fillStyle = colors.innerEar;
+  c2.beginPath();
+  c2.ellipse(2, 11, 16, 7, 0, 0, Math.PI*2);
+  c2.fill();
+
+  // ============ FRONT LEGS (in front of body) ============
+  if (animal !== 'bird') {
+    c2.fillStyle = flatBody;
+    c2.strokeStyle = stroke; c2.lineWidth = 2;
+    c2.fillRect(-9, 14, 5, 14); c2.strokeRect(-9, 14, 5, 14);
+    c2.fillRect(13, 14, 5, 14); c2.strokeRect(13, 14, 5, 14);
+    // paws on front legs
+    c2.fillStyle = colors.innerEar;
+    c2.beginPath(); c2.arc(-6.5, 28, 4, 0, Math.PI); c2.fill(); c2.stroke();
+    c2.beginPath(); c2.arc(15.5, 28, 4, 0, Math.PI); c2.fill(); c2.stroke();
+  } else {
+    // bird gets 2 stick feet
+    c2.strokeStyle = '#ffaa00'; c2.lineWidth = 3;
+    c2.beginPath();
+    c2.moveTo(-4, 18); c2.lineTo(-6, 28);
+    c2.moveTo(-6, 28); c2.lineTo(-9, 28);
+    c2.moveTo(-6, 28); c2.lineTo(-3, 28);
+    c2.moveTo(8, 18); c2.lineTo(10, 28);
+    c2.moveTo(10, 28); c2.lineTo(7, 28);
+    c2.moveTo(10, 28); c2.lineTo(13, 28);
+    c2.stroke();
+  }
+
+  // ============ WINGS (above body, behind head) ============
+  // Side-view wings: both wings overlapping, fluttering up
+  const wingY = flapping ? -16 : -6;
+  c2.fillStyle = '#fff';
+  c2.strokeStyle = '#5fa8ff'; c2.lineWidth = 2;
+  // back wing (slightly offset)
+  c2.beginPath(); c2.ellipse(-2, wingY + 2, 16, 11, -0.3, 0, Math.PI*2); c2.fill(); c2.stroke();
+  // front wing
+  c2.beginPath(); c2.ellipse(2, wingY, 18, 13, -0.3, 0, Math.PI*2); c2.fill(); c2.stroke();
+  // feather detail
+  c2.strokeStyle = 'rgba(95,168,255,0.4)';
+  c2.beginPath();
+  c2.moveTo(-12, wingY); c2.lineTo(14, wingY - 3);
+  c2.moveTo(-10, wingY + 4); c2.lineTo(14, wingY + 1);
+  c2.stroke();
+
+  // ============ HEAD (right side) ============
+  c2.fillStyle = bodyFill;
+  c2.strokeStyle = stroke; c2.lineWidth = 3;
+  c2.beginPath();
+  c2.arc(22, -6, 14, 0, Math.PI*2);
+  c2.fill();
+  c2.stroke();
+
+  // ============ ANIMAL-SPECIFIC HEAD DETAILS ============
+  if (animal === 'cat') {
+    // pointy ears (back & front)
+    c2.fillStyle = flatBody;
+    c2.beginPath(); c2.moveTo(14, -16); c2.lineTo(17, -26); c2.lineTo(20, -16); c2.closePath();
+    c2.fill(); c2.stroke();
+    c2.beginPath(); c2.moveTo(24, -16); c2.lineTo(28, -26); c2.lineTo(32, -16); c2.closePath();
+    c2.fill(); c2.stroke();
+    c2.fillStyle = colors.innerEar;
+    c2.beginPath(); c2.moveTo(15.5, -17); c2.lineTo(17, -22); c2.lineTo(18.5, -17); c2.closePath(); c2.fill();
+    c2.beginPath(); c2.moveTo(26, -17); c2.lineTo(28, -22); c2.lineTo(30, -17); c2.closePath(); c2.fill();
+    // nose (right side of head)
+    c2.fillStyle = '#80005a';
+    c2.beginPath(); c2.arc(35, -4, 2, 0, Math.PI*2); c2.fill();
+    // mouth
+    c2.strokeStyle = '#80005a'; c2.lineWidth = 1.2;
+    c2.beginPath();
+    c2.moveTo(35, -4); c2.lineTo(35, -1);
+    c2.moveTo(35, -1); c2.quadraticCurveTo(33, 1, 30, 0);
+    c2.stroke();
+    // whiskers
+    c2.beginPath();
+    c2.moveTo(32, -3); c2.lineTo(40, -5);
+    c2.moveTo(32, 0);  c2.lineTo(40, 0);
+    c2.stroke();
+  } else if (animal === 'dog') {
+    // floppy ear hanging down
+    c2.fillStyle = flatBody;
+    c2.strokeStyle = stroke; c2.lineWidth = 2;
+    c2.beginPath(); c2.ellipse(16, -8, 7, 12, -0.6, 0, Math.PI*2); c2.fill(); c2.stroke();
+    // snout
+    c2.fillStyle = colors.innerEar;
+    c2.beginPath(); c2.ellipse(33, -2, 8, 6, 0, 0, Math.PI*2); c2.fill(); c2.stroke();
+    // dog nose
+    c2.fillStyle = '#000';
+    c2.beginPath(); c2.ellipse(38, -4, 3, 2.5, 0, 0, Math.PI*2); c2.fill();
+    // tongue
+    c2.fillStyle = '#ff5fc6';
+    c2.beginPath(); c2.ellipse(36, 2, 3, 2, 0.3, 0, Math.PI*2); c2.fill();
+  } else if (animal === 'bird') {
+    // little crest
+    c2.fillStyle = flatBody;
+    c2.beginPath(); c2.moveTo(20, -18); c2.lineTo(22, -24); c2.lineTo(24, -18); c2.closePath();
+    c2.fill(); c2.stroke();
+    // beak (right-pointing triangle)
+    c2.fillStyle = '#ffaa00'; c2.strokeStyle = '#c47a00'; c2.lineWidth = 1.5;
+    c2.beginPath(); c2.moveTo(34, -6); c2.lineTo(44, -3); c2.lineTo(34, 0); c2.closePath();
+    c2.fill(); c2.stroke();
+  } else if (animal === 'bear') {
+    // round ear
+    c2.fillStyle = flatBody;
+    c2.strokeStyle = stroke; c2.lineWidth = 2;
+    c2.beginPath(); c2.arc(15, -18, 5, 0, Math.PI*2); c2.fill(); c2.stroke();
+    c2.fillStyle = colors.innerEar;
+    c2.beginPath(); c2.arc(15, -18, 2.5, 0, Math.PI*2); c2.fill();
+    // muzzle
+    c2.fillStyle = colors.innerEar;
+    c2.beginPath(); c2.ellipse(33, -2, 8, 6, 0, 0, Math.PI*2); c2.fill();
+    c2.strokeStyle = stroke; c2.lineWidth = 2; c2.stroke();
+    // bear nose
+    c2.fillStyle = '#000';
+    c2.beginPath(); c2.ellipse(38, -4, 3, 2.2, 0, 0, Math.PI*2); c2.fill();
+    // mouth
+    c2.strokeStyle = '#000'; c2.lineWidth = 1.2;
+    c2.beginPath();
+    c2.moveTo(38, -4); c2.lineTo(38, -1);
+    c2.moveTo(38, -1); c2.quadraticCurveTo(35, 1, 32, 0);
+    c2.stroke();
+  }
+
+  // ============ EYE (one big one, facing right) ============
+  const eyeColor = ({ green:'#3a8a3a', blue:'#3a8aff', black:'#000', gold:'#ffaa00', pink:'#ff5fc6' })[settings.cat.eye];
+  if (flapping) {
+    c2.fillStyle = '#000';
+    c2.fillRect(24, -8, 6, 1.5);
+  } else {
+    c2.fillStyle = '#fff';
+    c2.beginPath(); c2.arc(27, -8, 4, 0, Math.PI*2); c2.fill();
+    c2.fillStyle = eyeColor;
+    c2.beginPath(); c2.arc(28, -8, 2.5, 0, Math.PI*2); c2.fill();
+    c2.fillStyle = '#000';
+    c2.beginPath(); c2.arc(28.5, -8, 1.2, 0, Math.PI*2); c2.fill();
+    // sparkle
+    c2.fillStyle = '#fff';
+    c2.beginPath(); c2.arc(29, -9, 0.7, 0, Math.PI*2); c2.fill();
+  }
+
+  // ============ HAT (positioned above head) ============
+  c2.save();
+  c2.translate(22, -8);   // move hat origin to top of head
+  drawCatHat(c2, settings.cat.hat);
+  c2.restore();
+  c2.restore();
+}
+
+function drawCatHat(c2, hat) {
+  if (hat === 'crown') {
+    c2.fillStyle = '#ffd700';
+    c2.strokeStyle = '#c47a00'; c2.lineWidth = 2;
+    c2.beginPath();
+    c2.moveTo(-16, -22);
+    c2.lineTo(-12, -32);
+    c2.lineTo(-6, -24);
+    c2.lineTo(0, -34);
+    c2.lineTo(6, -24);
+    c2.lineTo(12, -32);
+    c2.lineTo(16, -22);
+    c2.closePath();
+    c2.fill(); c2.stroke();
+    c2.fillStyle = '#ff5fc6';
+    c2.beginPath(); c2.arc(0, -27, 2, 0, Math.PI*2); c2.fill();
+  } else if (hat === 'witch') {
+    c2.fillStyle = '#3a0033';
+    c2.strokeStyle = '#000'; c2.lineWidth = 2;
+    c2.beginPath();
+    c2.moveTo(-18, -22); c2.lineTo(18, -22); c2.lineTo(2, -42); c2.closePath();
+    c2.fill(); c2.stroke();
+    c2.fillStyle = '#ffe14c';
+    c2.fillRect(-18, -24, 36, 4);
+  } else if (hat === 'bow') {
+    c2.fillStyle = '#ff5fc6';
+    c2.strokeStyle = '#80005a'; c2.lineWidth = 2;
+    c2.beginPath(); c2.moveTo(-14, -28); c2.lineTo(0, -22); c2.lineTo(-14, -16); c2.closePath();
+    c2.fill(); c2.stroke();
+    c2.beginPath(); c2.moveTo(14, -28); c2.lineTo(0, -22); c2.lineTo(14, -16); c2.closePath();
+    c2.fill(); c2.stroke();
+    c2.beginPath(); c2.arc(0, -22, 4, 0, Math.PI*2); c2.fill(); c2.stroke();
+  } else if (hat === 'party') {
+    c2.fillStyle = '#5fa8ff';
+    c2.strokeStyle = '#003d5a'; c2.lineWidth = 2;
+    c2.beginPath();
+    c2.moveTo(-12, -22); c2.lineTo(12, -22); c2.lineTo(0, -42); c2.closePath();
+    c2.fill(); c2.stroke();
+    c2.fillStyle = '#ff5fc6';
+    c2.beginPath(); c2.arc(-8, -25, 2, 0, Math.PI*2); c2.fill();
+    c2.fillStyle = '#ffe14c';
+    c2.beginPath(); c2.arc(0, -32, 2, 0, Math.PI*2); c2.fill();
+    c2.fillStyle = '#5fd96b';
+    c2.beginPath(); c2.arc(8, -25, 2, 0, Math.PI*2); c2.fill();
+    c2.fillStyle = '#fff';
+    c2.beginPath(); c2.arc(0, -42, 4, 0, Math.PI*2); c2.fill();
+  }
+}
+
+// Persistent star positions for night/space backgrounds
+const STAR_FIELD = [];
+for (let i = 0; i < 60; i++) {
+  STAR_FIELD.push({ x: Math.random(), y: Math.random() * 0.8, size: Math.random() * 1.5 + 0.5, twinkle: Math.random() * Math.PI * 2 });
+}
+
+function drawBackground(c2, w, h) {
+  const bg = BG_TYPES[settings.bg.type];
+  // gradient base
+  const g = c2.createLinearGradient(0, 0, 0, h);
+  if (bg.grad === 'rainbow') {
+    g.addColorStop(0, '#ff5fc6');
+    g.addColorStop(0.2, '#ffe14c');
+    g.addColorStop(0.4, '#5fd96b');
+    g.addColorStop(0.6, '#5fa8ff');
+    g.addColorStop(1, '#c46bff');
+  } else {
+    bg.grad.forEach((color, i) => {
+      g.addColorStop(i / (bg.grad.length - 1), color);
+    });
+  }
+  c2.fillStyle = g;
+  c2.fillRect(0, 0, w, h);
+
+  // particles / decorations
+  if (bg.stars) {
+    const t = performance.now() / 500;
+    STAR_FIELD.forEach((s, i) => {
+      const alpha = 0.5 + 0.5 * Math.sin(t + s.twinkle);
+      c2.fillStyle = `rgba(255, 255, 220, ${alpha})`;
+      c2.fillRect(s.x * w, s.y * h, s.size * 2, s.size * 2);
+    });
+  }
+  if (bg.moon) {
+    c2.fillStyle = '#fff5cc';
+    c2.beginPath(); c2.arc(w * 0.8, h * 0.18, 38, 0, Math.PI*2); c2.fill();
+    c2.fillStyle = '#001f3f';
+    c2.beginPath(); c2.arc(w * 0.82, h * 0.16, 30, 0, Math.PI*2); c2.fill();
+  }
+  if (bg.planet) {
+    // ringed planet
+    const px = w * 0.78, py = h * 0.22;
+    c2.fillStyle = '#ff8e3c';
+    c2.beginPath(); c2.arc(px, py, 32, 0, Math.PI*2); c2.fill();
+    c2.strokeStyle = '#c47a00';
+    c2.lineWidth = 6;
+    c2.beginPath(); c2.ellipse(px, py, 50, 14, 0.3, 0, Math.PI*2); c2.stroke();
+    // smaller planet
+    c2.fillStyle = '#5fa8ff';
+    c2.beginPath(); c2.arc(w * 0.15, h * 0.35, 16, 0, Math.PI*2); c2.fill();
+  }
+  if (bg.bubbles) {
+    const t = performance.now() / 1000;
+    for (let i = 0; i < 15; i++) {
+      const bx = ((i * 47 + t * (40 + i * 5)) % (w + 60)) - 30;
+      const by = h - ((i * 83 + t * (60 + i * 8)) % (h * 0.9));
+      c2.fillStyle = 'rgba(255,255,255,0.4)';
+      c2.beginPath(); c2.arc(bx, by, 6 + (i % 3) * 4, 0, Math.PI*2); c2.fill();
+      c2.strokeStyle = 'rgba(255,255,255,0.7)';
+      c2.stroke();
+    }
+  }
+  if (bg.hearts) {
+    const t = performance.now() / 1500;
+    for (let i = 0; i < 12; i++) {
+      const hx = ((i * 73 + t * 30) % (w + 40)) - 20;
+      const hy = h - ((i * 91 + t * 50) % (h * 0.85));
+      c2.fillStyle = `rgba(255,200,240,${0.5 + 0.3 * Math.sin(t + i)})`;
+      c2.font = '20px sans-serif';
+      c2.fillText('💖', hx, hy);
+    }
+  }
+}
+
+function draw() {
+  drawBackground(ctx, W, H);
+  // skip clouds on dark/water backgrounds for vibe
+  const bg = BG_TYPES[settings.bg.type];
+  if (!bg.stars && !bg.bubbles) drawClouds(ctx, W, H);
+  drawPipesOn(ctx);
+  drawFishes();
+  drawGround();
+  drawCat(ctx, cat.x, cat.y, 1, cat.flapPhase > 0.4, cat.rotation);
+}
+
+let lastTime = performance.now();
+function loop(now) {
+  lastTime = now;
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// ---- Cat shop UI ----
+const catAnimalOpts = document.getElementById('cat-animal-opts');
+const ANIMAL_EMOJI = { cat: '🐱', dog: '🐶', bird: '🐦', bear: '🐻' };
+ANIMAL_TYPES.forEach(name => {
+  const b = document.createElement('button');
+  b.className = 'opt-btn';
+  b.textContent = `${ANIMAL_EMOJI[name]} ${name}`;
+  if (settings.cat.animal === name) b.classList.add('selected');
+  b.onclick = () => {
+    settings.cat.animal = name;
+    renderCatPreview();
+    catAnimalOpts.querySelectorAll('.opt-btn').forEach(x => x.classList.remove('selected'));
+    b.classList.add('selected');
+    sClick();
+  };
+  catAnimalOpts.appendChild(b);
+});
+const catColorOpts = document.getElementById('cat-color-opts');
+Object.keys(CAT_COLORS).forEach(name => {
+  const b = document.createElement('button');
+  b.className = 'opt-btn';
+  b.textContent = name;
+  if (settings.cat.color === name) b.classList.add('selected');
+  b.onclick = () => {
+    settings.cat.color = name;
+    renderCatPreview();
+    catColorOpts.querySelectorAll('.opt-btn').forEach(x => x.classList.remove('selected'));
+    b.classList.add('selected');
+    sClick();
+  };
+  catColorOpts.appendChild(b);
+});
+const catHatOpts = document.getElementById('cat-hat-opts');
+CAT_HATS.forEach(name => {
+  const b = document.createElement('button');
+  b.className = 'opt-btn';
+  b.textContent = name;
+  if (settings.cat.hat === name) b.classList.add('selected');
+  b.onclick = () => {
+    settings.cat.hat = name;
+    renderCatPreview();
+    catHatOpts.querySelectorAll('.opt-btn').forEach(x => x.classList.remove('selected'));
+    b.classList.add('selected');
+    sClick();
+  };
+  catHatOpts.appendChild(b);
+});
+const catEyeOpts = document.getElementById('cat-eye-opts');
+CAT_EYES.forEach(name => {
+  const b = document.createElement('button');
+  b.className = 'opt-btn';
+  b.textContent = name;
+  if (settings.cat.eye === name) b.classList.add('selected');
+  b.onclick = () => {
+    settings.cat.eye = name;
+    renderCatPreview();
+    catEyeOpts.querySelectorAll('.opt-btn').forEach(x => x.classList.remove('selected'));
+    b.classList.add('selected');
+    sClick();
+  };
+  catEyeOpts.appendChild(b);
+});
+
+const catPreview = document.getElementById('cat-preview').getContext('2d');
+function renderCatPreview() {
+  catPreview.clearRect(0, 0, 200, 180);
+  const grad = catPreview.createLinearGradient(0, 0, 0, 180);
+  grad.addColorStop(0, '#cdfaff'); grad.addColorStop(1, '#ffd6f5');
+  catPreview.fillStyle = grad; catPreview.fillRect(0, 0, 200, 180);
+  drawCat(catPreview, 100, 100, 1.4, false, 0);
+}
+
+// ---- Bug shop UI ----
+const bugTypeOpts = document.getElementById('bug-type-opts');
+BUG_TYPES.forEach(name => {
+  const b = document.createElement('button');
+  b.className = 'opt-btn';
+  b.textContent = name;
+  if (settings.bug.type === name) b.classList.add('selected');
+  b.onclick = () => {
+    settings.bug.type = name;
+    renderBugPreview();
+    bugTypeOpts.querySelectorAll('.opt-btn').forEach(x => x.classList.remove('selected'));
+    b.classList.add('selected');
+    sClick();
+  };
+  bugTypeOpts.appendChild(b);
+});
+const bugColorOpts = document.getElementById('bug-color-opts');
+BUG_COLORS.forEach(name => {
+  const b = document.createElement('button');
+  b.className = 'opt-btn';
+  b.textContent = name;
+  if (settings.bug.color === name) b.classList.add('selected');
+  b.onclick = () => {
+    settings.bug.color = name;
+    renderBugPreview();
+    bugColorOpts.querySelectorAll('.opt-btn').forEach(x => x.classList.remove('selected'));
+    b.classList.add('selected');
+    sClick();
+  };
+  bugColorOpts.appendChild(b);
+});
+
+// ---- BG shop UI ----
+const bgTypeOpts = document.getElementById('bg-type-opts');
+const bgStarsNum = document.getElementById('bg-stars-num');
+const bgShopMsg = document.getElementById('bg-shop-msg');
+
+function refreshBgShop() {
+  bgStarsNum.textContent = totalStars;
+  bgTypeOpts.innerHTML = '';
+  Object.keys(BG_TYPES).forEach(name => {
+    const bg = BG_TYPES[name];
+    const isUnlocked = unlocked.has(name);
+    const b = document.createElement('button');
+    b.className = 'opt-btn';
+    if (settings.bg.type === name) b.classList.add('selected');
+    if (!isUnlocked) b.classList.add('locked');
+    if (isUnlocked) {
+      b.innerHTML = bg.name;
+    } else {
+      b.innerHTML = `🔒 ${bg.name} <span class="cost">(${bg.cost} ⭐)</span>`;
+    }
+    b.onclick = () => {
+      sClick();
+      if (isUnlocked) {
+        settings.bg.type = name;
+        saveSettings();
+        bgShopMsg.textContent = `Selected ${bg.name}!`;
+        bgShopMsg.style.color = '#bff5b5';
+        refreshBgShop();
+      } else if (totalStars >= bg.cost) {
+        // unlock! Spend stars and unlock the background.
+        totalStars -= bg.cost;
+        unlocked.add(name);
+        settings.bg.type = name;
+        saveProgress();
+        saveSettings();
+        bgShopMsg.innerHTML = `🎉 Unlocked <b>${bg.name}</b>! Spent ${bg.cost} ⭐`;
+        bgShopMsg.style.color = '#ffe14c';
+        sFish();
+        refreshBgShop();
+        refreshStars();   // also update the main game UI
+      } else {
+        const need = bg.cost - totalStars;
+        bgShopMsg.innerHTML = `💔 Need <b>${need}</b> more stars to unlock ${bg.name}`;
+        bgShopMsg.style.color = '#ffaaaa';
+      }
+    };
+    bgTypeOpts.appendChild(b);
+  });
+}
+refreshBgShop();
+
+const bgPreviewCtx = document.getElementById('bg-preview').getContext('2d');
+let bgPreviewTimer = null;
+function renderBgPreview() {
+  // call drawBackground but for the small preview canvas
+  const oldType = null;
+  drawBackground(bgPreviewCtx, 240, 160);
+}
+function startBgPreviewLoop() {
+  if (bgPreviewTimer) return;
+  bgPreviewTimer = setInterval(renderBgPreview, 1000 / 30);
+}
+function stopBgPreviewLoop() {
+  if (bgPreviewTimer) { clearInterval(bgPreviewTimer); bgPreviewTimer = null; }
+}
+
+const bugPreview = document.getElementById('bug-preview').getContext('2d');
+let bugPreviewTimer = null;
+function startBugPreviewLoop() {
+  if (bugPreviewTimer) return;
+  bugPreviewTimer = setInterval(renderBugPreview, 1000 / 30);
+}
+function stopBugPreviewLoop() {
+  if (bugPreviewTimer) { clearInterval(bugPreviewTimer); bugPreviewTimer = null; }
+}
+function renderBugPreview() {
+  bugPreview.clearRect(0, 0, 200, 180);
+  const grad = bugPreview.createLinearGradient(0, 0, 0, 180);
+  grad.addColorStop(0, '#cdfaff'); grad.addColorStop(1, '#bff5b5');
+  bugPreview.fillStyle = grad; bugPreview.fillRect(0, 0, 200, 180);
+  const colorMap = { green: '#3a8a3a', red: '#c44', blue: '#4a8aff', purple: '#9b6cff', yellow: '#ffd700', black: '#222' };
+  drawBug(bugPreview, 100, 90, 50, colorMap[settings.bug.color], settings.bug.type);
+}
+</script>
+</body>
+</html>
