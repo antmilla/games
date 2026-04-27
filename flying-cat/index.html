@@ -51,6 +51,20 @@
     text-shadow: 2px 2px 0 #80005a;
     pointer-events: none;
   }
+  #coins-hud {
+    position: fixed;
+    top: 44px;
+    right: 14px;
+    background: linear-gradient(#ffd700, #c47a00);
+    color: #2a0033;
+    padding: 4px 10px;
+    border-radius: 12px;
+    border: 2px solid #80005a;
+    font-size: 18px;
+    font-weight: bold;
+    pointer-events: none;
+    z-index: 50;
+  }
   #help {
     position: fixed;
     bottom: 12px;
@@ -287,6 +301,127 @@
   #go-retry-btn { background: linear-gradient(#ffd6f5, #ff8ed4); }
   #go-menu-btn  { background: linear-gradient(#cdfaff, #5fd9ff); }
 
+  /* TV commercial button */
+  #tv-btn {
+    position: fixed;
+    top: 70px;
+    right: 14px;
+    background: linear-gradient(#444, #222);
+    color: #fff;
+    border: 4px solid #ffe14c;
+    border-radius: 14px;
+    width: 64px; height: 50px;
+    font-size: 28px;
+    cursor: pointer;
+    z-index: 60;
+    box-shadow: 0 4px 0 #000;
+    font-family: inherit;
+  }
+  #tv-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #000; }
+
+  #tv-overlay {
+    position: fixed; inset: 0;
+    z-index: 300;
+    display: none;
+    cursor: pointer;
+    overflow: hidden;
+  }
+  #tv-overlay.active { display: block; }
+  .ad-card {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: #fff;
+    animation: adZoom 0.4s ease-out;
+  }
+  @keyframes adZoom {
+    from { opacity: 0; transform: scale(0.5); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+  .ad-emoji {
+    font-size: 200px;
+    filter: drop-shadow(0 0 30px rgba(255,255,255,0.6));
+    animation: adBob 1.2s ease-in-out infinite alternate;
+    line-height: 1;
+  }
+  @keyframes adBob {
+    from { transform: translateY(0) rotate(-5deg); }
+    to   { transform: translateY(-15px) rotate(5deg); }
+  }
+  .ad-title {
+    font-size: 56px;
+    text-shadow: 4px 4px 0 #000, 8px 8px 0 #80005a;
+    font-weight: bold;
+    letter-spacing: 3px;
+    margin-top: 8px;
+  }
+  .ad-tag {
+    font-size: 28px;
+    margin-top: 12px;
+    text-shadow: 2px 2px 0 #000;
+    color: #fff5cc;
+  }
+  .ad-cta {
+    margin-top: 24px;
+    background: #ffe14c;
+    color: #80005a;
+    padding: 14px 40px;
+    font-size: 36px;
+    border-radius: 18px;
+    font-weight: bold;
+    box-shadow: 0 8px 0 #c47a00;
+    animation: adPulse 0.6s ease-in-out infinite alternate;
+    letter-spacing: 2px;
+  }
+  @keyframes adPulse {
+    from { transform: scale(1); }
+    to   { transform: scale(1.08); }
+  }
+  .ad-skip {
+    position: absolute;
+    bottom: 24px;
+    right: 24px;
+    background: rgba(255,255,255,0.85);
+    color: #2a0033;
+    border: 2px solid #ff5fc6;
+    border-radius: 12px;
+    padding: 6px 14px;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  .ad-reward {
+    margin-top: 14px;
+    color: #ffe14c;
+    font-size: 22px;
+    font-weight: bold;
+    text-shadow: 2px 2px 0 #000;
+    animation: rewardPop 0.6s ease-out;
+  }
+  @keyframes rewardPop {
+    0%   { opacity: 0; transform: scale(0.3); }
+    60%  { opacity: 1; transform: scale(1.2); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  .ad-static {
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      rgba(255,255,255,0.05) 0px,
+      rgba(0,0,0,0.10) 2px,
+      rgba(255,255,255,0.03) 4px
+    );
+    animation: adStatic 0.08s linear infinite;
+    pointer-events: none;
+  }
+  @keyframes adStatic {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-2px); }
+  }
+
   /* Pause button (top center, near title) */
   #pause-btn {
     position: fixed;
@@ -326,15 +461,16 @@
     color: #ffe14c;
     text-shadow: 4px 4px 0 #ff5fc6, 8px 8px 0 #2a0033, 0 0 30px #fff;
     pointer-events: none;
-    z-index: 90;
+    z-index: 250;
     display: none;
-    animation: countPop 1s ease-out forwards;
+  }
+  #countdown.pop {
+    animation: countPop 0.85s ease-out;
   }
   @keyframes countPop {
     0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.3) rotate(-15deg); }
-    30%  { opacity: 1; transform: translate(-50%, -50%) scale(1.2) rotate(5deg); }
-    70%  { opacity: 1; transform: translate(-50%, -50%) scale(1.0) rotate(0deg); }
-    100% { opacity: 0; transform: translate(-50%, -50%) scale(1.4) rotate(0deg); }
+    30%  { opacity: 1; transform: translate(-50%, -50%) scale(1.3) rotate(5deg); }
+    100% { opacity: 1; transform: translate(-50%, -50%) scale(1.0) rotate(0deg); }
   }
 </style>
 </head>
@@ -343,9 +479,12 @@
 <div id="title">🐱✨ FLYING CAT ✨🐱</div>
 <div id="score">⭐ Stars: <span id="score-num">0</span> &nbsp;<span id="run-num" style="opacity:0.7;font-size:18px;">(+0)</span></div>
 <div id="best">Best run: <span id="best-num">0</span></div>
+<div id="coins-hud">🪙 <span id="coins-num">0</span></div>
 <div id="help">SPACE or CLICK to flap! &nbsp;•&nbsp; B to pause 🐾</div>
 <div id="countdown"></div>
 <button id="pause-btn" class="hidden" title="Pause (B)">⏸</button>
+<button id="tv-btn" title="Watch a TV commercial!">📺</button>
+<div id="tv-overlay"></div>
 
 <!-- PAUSE OVERLAY -->
 <div id="pause-screen" class="screen hidden">
@@ -393,7 +532,12 @@
     <h3>👁 Eyes</h3>
     <div class="opt-row" id="cat-eye-opts"></div>
   </div>
+  <div class="opt-section">
+    <h3>🪽 Wings</h3>
+    <div class="opt-row" id="cat-wings-opts"></div>
+  </div>
 
+  <p id="cat-shop-msg" style="font-size:14px;opacity:0.8;min-height:18px;"></p>
   <button class="big-btn" id="cat-shop-back">✓ DONE</button>
 </div>
 
@@ -457,6 +601,7 @@ const settings = {
     color: SAVED.cat?.color || 'pink',
     hat:   SAVED.cat?.hat   || 'none',
     eye:   SAVED.cat?.eye   || 'green',
+    wings: SAVED.cat?.wings || 'feather',
   },
   bug: {
     type:  SAVED.bug?.type  || 'caterpillar',
@@ -479,7 +624,7 @@ const CAT_COLORS = {
   black:  { body: '#3a3a4a', stroke: '#000000', innerEar: '#ff5fc6' },
   rainbow:{ body: 'rainbow', stroke: '#80005a', innerEar: '#ffd6f5' },
 };
-const CAT_HATS = ['none','crown','witch','bow','party'];
+const CAT_HATS = ['none','crown','witch','bow','party','tophat','shades','cowboy','viking','halo'];
 const CAT_EYES = ['green','blue','black','gold','pink'];
 const ANIMAL_TYPES = ['cat','dog','bird','bear'];
 
@@ -505,11 +650,68 @@ function saveProgress() {
     unlocked: [...unlocked],
   }));
 }
+
+// ----- Shared cross-game coin currency -----
+let coins = +(localStorage.getItem('camilla-coins') || 0);
+function saveCoins() { localStorage.setItem('camilla-coins', coins); }
+
+// ----- Premium unlocks (bought with coins) -----
+const ITEM_UNLOCKS = JSON.parse(localStorage.getItem('flying-cat-items') || '{}');
+const itemUnlocked = {
+  hats:    new Set(ITEM_UNLOCKS.hats    || []),
+  colors:  new Set(ITEM_UNLOCKS.colors  || []),
+  bugs:    new Set(ITEM_UNLOCKS.bugs    || []),
+  wings:   new Set(ITEM_UNLOCKS.wings   || ['feather']),
+};
+itemUnlocked.wings.add('feather');  // default wings always unlocked
+function saveItemUnlocks() {
+  localStorage.setItem('flying-cat-items', JSON.stringify({
+    hats:   [...itemUnlocked.hats],
+    colors: [...itemUnlocked.colors],
+    bugs:   [...itemUnlocked.bugs],
+    wings:  [...itemUnlocked.wings],
+  }));
+}
+
+// Premium items (coin-locked). Free items defined elsewhere.
+const PREMIUM_HATS = {
+  tophat:    { name: '🎩 Top Hat',    cost: 5 },
+  shades:    { name: '🕶️ Shades',    cost: 5 },
+  cowboy:    { name: '🤠 Cowboy',     cost: 10 },
+  viking:    { name: '⚔️ Viking',     cost: 10 },
+  halo:      { name: '😇 Halo',       cost: 15 },
+};
+const PREMIUM_COLORS = {
+  galaxy:    { name: '✨ Galaxy',  cost: 10, body: 'galaxy', stroke: '#1a0033', innerEar: '#9b6cff' },
+  neon:      { name: '💚 Neon',    cost: 10, body: '#39ff14', stroke: '#0a3d0a', innerEar: '#aaffaa' },
+  fire:      { name: '🔥 Fire',    cost: 15, body: 'fire',   stroke: '#80005a', innerEar: '#ffe14c' },
+  ice:       { name: '❄️ Ice',     cost: 15, body: '#cdfaff', stroke: '#2c7aa8', innerEar: '#fff' },
+};
+const PREMIUM_BUGS = {
+  snake:     { name: '🐍 Snake',   cost: 10 },
+  alien:     { name: '👽 Alien',   cost: 15 },
+  monster:   { name: '👾 Monster', cost: 20 },
+};
+const WING_STYLES = {
+  feather:   { name: '🪽 Feather (free)', cost: 0 },
+  fairy:     { name: '🧚 Fairy',          cost: 10 },
+  dragon:    { name: '🐉 Dragon',         cost: 15 },
+  butterfly: { name: '🦋 Butterfly',      cost: 10 },
+};
+
+// Wire premium colors into CAT_COLORS so the renderer can find them.
+Object.entries(PREMIUM_COLORS).forEach(([k, v]) => {
+  CAT_COLORS[k] = { body: v.body, stroke: v.stroke, innerEar: v.innerEar };
+});
+
 // If the saved BG type isn't unlocked (e.g. data was wiped), fall back to sky
 if (!unlocked.has(settings.bg.type)) settings.bg.type = 'sky';
 
 const BUG_TYPES = ['caterpillar','beetle','spider','ladybug','ant','copter'];
 const BUG_COLORS = ['green','red','blue','purple','yellow','black'];
+
+// Wire premium bug types into the BUG_TYPES list (after it's declared).
+Object.keys(PREMIUM_BUGS).forEach(k => { if (!BUG_TYPES.includes(k)) BUG_TYPES.push(k); });
 
 // ---- Game state ----
 const cat = {
@@ -531,9 +733,11 @@ const scoreEl = document.getElementById('score-num');
 const runEl = document.getElementById('run-num');
 const bestEl = document.getElementById('best-num');
 bestEl.textContent = best;
+const coinsNum = document.getElementById('coins-num');
 function refreshStars() {
   scoreEl.textContent = totalStars;
   runEl.textContent = `(+${score})`;
+  coinsNum.textContent = coins;
 }
 refreshStars();
 
@@ -658,31 +862,30 @@ const countdownEl = document.getElementById('countdown');
 
 // Reusable 3-2-1-GO countdown. Calls onGo() at "GO!".
 function runCountdown(onGo) {
-  let count = 3;
   const showStep = (text, freq) => {
     countdownEl.style.display = 'block';
-    countdownEl.style.animation = 'none';
+    countdownEl.classList.remove('pop');
     void countdownEl.offsetWidth;       // restart animation
-    countdownEl.style.animation = 'countPop 1s ease-out forwards';
+    countdownEl.classList.add('pop');
     countdownEl.textContent = text;
     tone(freq, 0.25, 'triangle', 0.18);
   };
   showStep('3', 440);
-  const id = setInterval(() => {
-    count--;
-    if (count === 2) showStep('2', 550);
-    else if (count === 1) showStep('1', 660);
-    else if (count === 0) {
-      showStep('GO!', 880);
-      onGo();
-    } else {
-      clearInterval(id);
-      countdownEl.style.display = 'none';
-    }
-  }, 900);
+  setTimeout(() => showStep('2', 550), 900);
+  setTimeout(() => showStep('1', 660), 1800);
+  setTimeout(() => { showStep('GO!', 880); onGo(); }, 2700);
+  setTimeout(() => { countdownEl.style.display = 'none'; }, 3500);
 }
 
 function beginGameWithCountdown() {
+  // Clean up any lingering ad state so it can't trigger during the countdown
+  if (singleAdTimeout) { clearTimeout(singleAdTimeout); singleAdTimeout = null; }
+  singleAdDone = true;
+  if (tvTimer) { clearTimeout(tvTimer); tvTimer = null; }
+  tvOverlay.classList.remove('active');
+  tvOverlay.innerHTML = '';
+  tvOverlay.onclick = null;
+
   cat.x = 140; cat.y = H/2; cat.vy = 0; cat.rotation = 0;
   pipes = []; fishes = [];
   spawnPipes();
@@ -693,8 +896,8 @@ function beginGameWithCountdown() {
   pauseBtn.classList.remove('hidden');
   runCountdown(() => { started = true; });
 }
-document.getElementById('cat-shop-btn').addEventListener('click', () => { ensureAudio(); sClick(); showScreen(catShop); renderCatPreview(); });
-document.getElementById('bug-shop-btn').addEventListener('click', () => { ensureAudio(); sClick(); showScreen(bugShop); renderBugPreview(); startBugPreviewLoop(); });
+document.getElementById('cat-shop-btn').addEventListener('click', () => { ensureAudio(); sClick(); showScreen(catShop); catShopMsg.textContent = ''; renderCatShop(); renderCatPreview(); });
+document.getElementById('bug-shop-btn').addEventListener('click', () => { ensureAudio(); sClick(); showScreen(bugShop); bugShopMsgInternal.textContent = ''; renderBugShop(); renderBugPreview(); startBugPreviewLoop(); });
 document.getElementById('bg-shop-btn').addEventListener('click', () => { ensureAudio(); sClick(); showScreen(bgShop); refreshBgShop(); bgShopMsg.textContent = ''; startBgPreviewLoop(); });
 document.getElementById('bg-shop-back').addEventListener('click', () => { sClick(); saveSettings(); stopBgPreviewLoop(); showScreen(startScreen); });
 document.getElementById('cat-shop-back').addEventListener('click', () => { sClick(); saveSettings(); showScreen(startScreen); });
@@ -784,18 +987,158 @@ function die() {
     localStorage.setItem('flying-cat-best', best);
     bestEl.textContent = best;
   }
-  // pick a random death message
   const dm = DEATH_MESSAGES[Math.floor(Math.random() * DEATH_MESSAGES.length)];
   goEmojiEl.textContent = dm.emoji;
   goMsgEl.innerHTML = dm.msg;
   goScoreEl.textContent = score;
   goBestEl.textContent = best;
   goNewBestEl.classList.toggle('hidden', !isNewBest);
-  showScreen(gameoverScreen);
+  // After every fly, play a single short commercial then show game over
+  showSingleAd(() => showScreen(gameoverScreen));
+}
+
+// Plays one random commercial as a post-fly ad, gives +1⭐ and +1🪙.
+let singleAdTimeout = null;
+let singleAdDone = false;
+function showSingleAd(onDone) {
+  const ad = COMMERCIALS[Math.floor(Math.random() * COMMERCIALS.length)];
+  totalStars++; coins++;
+  saveProgress(); saveCoins(); refreshStars();
+  tvOverlay.classList.add('active');
+  tvOverlay.style.background = ad.bg;
+  tvOverlay.innerHTML = `
+    <div class="ad-card">
+      <div class="ad-emoji">${ad.emoji}</div>
+      <div class="ad-title">${ad.title}</div>
+      <div class="ad-tag">${ad.tag}</div>
+      <div class="ad-cta">PLAY NOW!</div>
+      <div class="ad-reward">⭐ +1 star &nbsp; 🪙 +1 coin</div>
+    </div>
+    <button class="ad-skip">✕ continue</button>
+    <div class="ad-static"></div>
+  `;
+  [600, 800, 1100].forEach((f, i) => setTimeout(() => tone(f, 0.1, 'square', 0.10), i * 80));
+  setTimeout(() => tone(1320, 0.12, 'triangle', 0.16), 250);
+
+  singleAdDone = false;
+  const finish = () => {
+    if (singleAdDone) return;          // guard against double-finish
+    singleAdDone = true;
+    if (singleAdTimeout) { clearTimeout(singleAdTimeout); singleAdTimeout = null; }
+    tvOverlay.classList.remove('active');
+    tvOverlay.innerHTML = '';
+    tvOverlay.onclick = null;
+    onDone();
+  };
+  const skip = tvOverlay.querySelector('.ad-skip');
+  if (skip) skip.onclick = (e) => { e.stopPropagation(); finish(); };
+  tvOverlay.onclick = finish;
+  singleAdTimeout = setTimeout(finish, 3000);
 }
 
 document.getElementById('go-retry-btn').addEventListener('click', () => { sClick(); restart(); });
 document.getElementById('go-menu-btn').addEventListener('click', () => { sClick(); showScreen(startScreen); });
+
+// ---- TV COMMERCIAL ----
+const COMMERCIALS = [
+  { title: 'OPPOSITE DAY!',     emoji: '🙃',     tag: 'Every sign LIES! Do the OPPOSITE!',          bg: 'linear-gradient(135deg,#ffd6f5 0%,#c46bff 100%)' },
+  { title: 'JUNGLE ADVENTURE',  emoji: '🌴',     tag: 'Pick your path — find all 8 endings!',       bg: 'linear-gradient(180deg,#2d5016 0%,#6dab4a 100%)' },
+  { title: 'MAGICAL FOREST',    emoji: '🐉',     tag: 'Beat the BOSS DRAGON!',                       bg: 'linear-gradient(180deg,#1f4d1f 0%,#0e2a0e 100%)' },
+  { title: 'TWO TRUTHS & A LIE', emoji: '🎭',    tag: 'Trick your friend... or the ROBOT!',         bg: 'linear-gradient(135deg,#ffd6f5 0%,#cdfaff 100%)' },
+  { title: 'KITTY MOVIE',       emoji: '🐱',     tag: 'A cat\'s big day! 🎬',                        bg: 'linear-gradient(180deg,#ff5fc6 0%,#ffe14c 100%)' },
+  { title: 'BLUEY MOVIE',       emoji: '🐶💙',   tag: 'Bluey & Bingo & Mum & Dad! 💖',                bg: 'linear-gradient(180deg,#003d5a 0%,#5fd9ff 100%)' },
+  { title: 'SQUISHMALLOWS',     emoji: '🦄',     tag: 'Squishy hugs all around! 🌸',                 bg: 'linear-gradient(135deg,#ffd6f5 0%,#5fd9ff 100%)' },
+  { title: 'MERMAID ADVENTURE', emoji: '🧜‍♀️',  tag: 'Under the sea! 🌊',                            bg: 'linear-gradient(180deg,#5fd9ff 0%,#003d5a 100%)' },
+];
+
+const tvBtn = document.getElementById('tv-btn');
+const tvOverlay = document.getElementById('tv-overlay');
+let tvTimer = null;
+
+function showCommercial() {
+  ensureAudio();
+  let idx = 0;
+  let adsWatched = 0;          // each ad = +1 star reward
+  tvOverlay.classList.add('active');
+
+  function adJingle() {
+    [600, 800, 1100].forEach((f, i) => setTimeout(() => tone(f, 0.1, 'square', 0.10), i * 80));
+  }
+
+  function showAd() {
+    if (idx >= COMMERCIALS.length) {
+      tvOverlay.style.background = '#000';
+      tvOverlay.innerHTML = `
+        <div class="ad-card">
+          <div class="ad-emoji">🎮</div>
+          <div class="ad-title" style="color:#ffe14c;">PLAY THEM ALL!</div>
+          <div class="ad-tag">All games by Camilla</div>
+          <div class="ad-cta" style="background:#5fd96b;color:#1a4a1a;">🎁 +${adsWatched} ⭐ &amp; +${adsWatched} 🪙</div>
+        </div>
+        <button class="ad-skip">✕ close</button>
+        <div class="ad-static"></div>
+      `;
+      [880, 988, 1175, 1319].forEach((f, i) => setTimeout(() => tone(f, 0.18, 'triangle', 0.16), i * 120));
+      tvTimer = setTimeout(closeCommercial, 2800);
+      attachClose();
+      return;
+    }
+    const ad = COMMERCIALS[idx++];
+    // reward: +1 star AND +1 coin per ad watched
+    adsWatched++;
+    totalStars++;
+    coins++;
+    saveProgress();
+    saveCoins();
+    refreshStars();
+    tvOverlay.style.background = ad.bg;
+    tvOverlay.innerHTML = `
+      <div class="ad-card">
+        <div class="ad-emoji">${ad.emoji}</div>
+        <div class="ad-title">${ad.title}</div>
+        <div class="ad-tag">${ad.tag}</div>
+        <div class="ad-cta">PLAY NOW!</div>
+        <div class="ad-reward">⭐ +1 star &nbsp; 🪙 +1 coin</div>
+      </div>
+      <button class="ad-skip">✕ close</button>
+      <div class="ad-static"></div>
+    `;
+    adJingle();
+    // little star ding for the reward
+    setTimeout(() => tone(1320, 0.12, 'triangle', 0.16), 300);
+    tvTimer = setTimeout(showAd, 2600);
+    attachClose();
+  }
+
+  function attachClose() {
+    const skipBtn = tvOverlay.querySelector('.ad-skip');
+    if (skipBtn) skipBtn.onclick = (e) => { e.stopPropagation(); closeCommercial(); };
+  }
+
+  // tap anywhere on the overlay to advance
+  tvOverlay.onclick = () => {
+    if (tvTimer) clearTimeout(tvTimer);
+    showAd();
+  };
+
+  // brief TV-on flash
+  tvOverlay.style.background = '#fff';
+  tvOverlay.innerHTML = '<div class="ad-static"></div>';
+  tone(2000, 0.1, 'sawtooth', 0.06);
+  tvTimer = setTimeout(showAd, 250);
+}
+
+function closeCommercial() {
+  if (tvTimer) { clearTimeout(tvTimer); tvTimer = null; }
+  tvOverlay.classList.remove('active');
+  tvOverlay.innerHTML = '';
+  tvOverlay.onclick = null;
+  // also close any pending single-ad state
+  if (singleAdTimeout) { clearTimeout(singleAdTimeout); singleAdTimeout = null; }
+  singleAdDone = true;
+}
+
+tvBtn.addEventListener('click', () => { sClick(); showCommercial(); });
 
 // Reset progress (with confirmation)
 document.getElementById('reset-btn').addEventListener('click', () => {
@@ -976,6 +1319,89 @@ function drawBug(c2, x, y, r, color, type) {
     c2.moveTo(0, r * 0.45); c2.lineTo(r * 0.3 + legW, r * 0.95);
     c2.stroke();
     c2.restore();
+  } else if (type === 'snake') {
+    // wiggly snake — segments offset by sine wave
+    for (let i = -2; i <= 2; i++) {
+      const yWave = Math.sin(t * 2 + i * 0.7) * r * 0.25;
+      c2.fillStyle = color;
+      c2.beginPath();
+      c2.arc(i * r * 0.42, yWave, r * 0.45, 0, Math.PI*2);
+      c2.fill();
+      c2.strokeStyle = '#000'; c2.lineWidth = 2; c2.stroke();
+    }
+    // snake head (right end)
+    const headY = Math.sin(t * 2 + 2 * 0.7) * r * 0.25;
+    c2.fillStyle = '#fff';
+    c2.beginPath(); c2.arc(r * 0.95, headY - r * 0.1, r * 0.13, 0, Math.PI*2); c2.fill();
+    c2.fillStyle = '#000';
+    c2.beginPath(); c2.arc(r * 0.98, headY - r * 0.1, r * 0.07, 0, Math.PI*2); c2.fill();
+    // tongue
+    c2.strokeStyle = '#ff0040'; c2.lineWidth = 1.5;
+    const tongue = Math.sin(t * 6) * r * 0.1;
+    c2.beginPath();
+    c2.moveTo(r * 1.05, headY); c2.lineTo(r * 1.25 + tongue, headY); c2.stroke();
+  } else if (type === 'alien') {
+    // alien head + 3 wiggling antennae
+    c2.fillStyle = color;
+    c2.beginPath();
+    c2.ellipse(0, 0, r * 0.65, r * 0.85, 0, 0, Math.PI*2);
+    c2.fill();
+    c2.strokeStyle = '#000'; c2.lineWidth = 2; c2.stroke();
+    // 3 antennae with bobbles
+    [-0.3, 0, 0.3].forEach((dx, i) => {
+      const w = Math.sin(t * 3 + i) * r * 0.1;
+      c2.beginPath();
+      c2.moveTo(dx * r, -r * 0.85);
+      c2.lineTo(dx * r + w, -r * 1.15);
+      c2.stroke();
+      c2.fillStyle = '#5fd96b';
+      c2.beginPath(); c2.arc(dx * r + w, -r * 1.15, r * 0.08, 0, Math.PI*2); c2.fill();
+    });
+    // big oval eyes
+    c2.fillStyle = '#000';
+    c2.beginPath(); c2.ellipse(-r * 0.18, -r * 0.05, r * 0.14, r * 0.22, 0, 0, Math.PI*2); c2.fill();
+    c2.beginPath(); c2.ellipse(r * 0.18, -r * 0.05, r * 0.14, r * 0.22, 0, 0, Math.PI*2); c2.fill();
+    // eye shine
+    c2.fillStyle = '#fff';
+    c2.beginPath(); c2.arc(-r * 0.16, -r * 0.12, r * 0.05, 0, Math.PI*2); c2.fill();
+    c2.beginPath(); c2.arc(r * 0.20, -r * 0.12, r * 0.05, 0, Math.PI*2); c2.fill();
+  } else if (type === 'monster') {
+    // big toothy monster — bobs and gnashes teeth
+    c2.save();
+    c2.translate(0, Math.sin(t * 1.5) * r * 0.05);
+    c2.fillStyle = color;
+    c2.beginPath(); c2.arc(0, 0, r * 0.85, 0, Math.PI*2); c2.fill();
+    c2.strokeStyle = '#000'; c2.lineWidth = 2; c2.stroke();
+    // spikes around body
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      const wiggle = Math.sin(t * 2 + i) * r * 0.05;
+      c2.beginPath();
+      c2.moveTo(Math.cos(a) * r * 0.7, Math.sin(a) * r * 0.7);
+      c2.lineTo(Math.cos(a) * r * (1.0 + wiggle * 0.4), Math.sin(a) * r * (1.0 + wiggle * 0.4));
+      c2.stroke();
+    }
+    // mouth (open & close)
+    const open = (Math.sin(t * 4) * 0.5 + 0.5) * r * 0.3 + r * 0.05;
+    c2.fillStyle = '#000';
+    c2.beginPath();
+    c2.ellipse(0, r * 0.2, r * 0.4, open, 0, 0, Math.PI*2);
+    c2.fill();
+    // teeth
+    c2.fillStyle = '#fff';
+    for (let i = -1; i <= 1; i++) {
+      c2.beginPath();
+      c2.moveTo(i * r * 0.18 - r * 0.06, r * 0.15);
+      c2.lineTo(i * r * 0.18 + r * 0.06, r * 0.15);
+      c2.lineTo(i * r * 0.18, r * 0.27);
+      c2.closePath(); c2.fill();
+    }
+    // 1 big eye
+    c2.fillStyle = '#fff';
+    c2.beginPath(); c2.arc(0, -r * 0.25, r * 0.22, 0, Math.PI*2); c2.fill();
+    c2.fillStyle = '#000';
+    c2.beginPath(); c2.arc(Math.sin(t) * r * 0.06, -r * 0.25, r * 0.1, 0, Math.PI*2); c2.fill();
+    c2.restore();
   } else if (type === 'copter') {
     // Helicopter bug — round body + spinning blades on top
     const t = performance.now() / 80;       // fast spin
@@ -1061,6 +1487,77 @@ function drawCat(c2, cx, cy, scale = 1, flapping = false, rotation = 0) {
   drawAnimal(c2, cx, cy, scale, flapping, rotation);
 }
 
+function drawWings(c2, style, flapping) {
+  const wingY = flapping ? -16 : -6;
+  if (style === 'feather' || !style) {
+    c2.fillStyle = '#fff';
+    c2.strokeStyle = '#5fa8ff'; c2.lineWidth = 2;
+    c2.beginPath(); c2.ellipse(-2, wingY + 2, 16, 11, -0.3, 0, Math.PI*2); c2.fill(); c2.stroke();
+    c2.beginPath(); c2.ellipse(2, wingY, 18, 13, -0.3, 0, Math.PI*2); c2.fill(); c2.stroke();
+    c2.strokeStyle = 'rgba(95,168,255,0.4)';
+    c2.beginPath();
+    c2.moveTo(-12, wingY); c2.lineTo(14, wingY - 3);
+    c2.moveTo(-10, wingY + 4); c2.lineTo(14, wingY + 1);
+    c2.stroke();
+  } else if (style === 'fairy') {
+    // 4 round translucent wings with sparkle
+    c2.fillStyle = 'rgba(255, 220, 255, 0.7)';
+    c2.strokeStyle = '#c46bff'; c2.lineWidth = 2;
+    c2.beginPath(); c2.ellipse(-4, wingY + 4, 14, 10, -0.4, 0, Math.PI*2); c2.fill(); c2.stroke();
+    c2.beginPath(); c2.ellipse(-4, wingY - 6, 12, 8, -0.6, 0, Math.PI*2); c2.fill(); c2.stroke();
+    c2.beginPath(); c2.ellipse(8, wingY + 4, 14, 10, 0.4, 0, Math.PI*2); c2.fill(); c2.stroke();
+    c2.beginPath(); c2.ellipse(8, wingY - 6, 12, 8, 0.6, 0, Math.PI*2); c2.fill(); c2.stroke();
+    // sparkles
+    c2.fillStyle = '#fff5cc';
+    c2.beginPath(); c2.arc(0, wingY - 2, 2, 0, Math.PI*2); c2.fill();
+    c2.beginPath(); c2.arc(10, wingY + 2, 1.5, 0, Math.PI*2); c2.fill();
+  } else if (style === 'dragon') {
+    // dragon-wing membrane
+    c2.fillStyle = '#5a2a8a';
+    c2.strokeStyle = '#2a0033'; c2.lineWidth = 2;
+    c2.beginPath();
+    c2.moveTo(-4, wingY + 4);
+    c2.quadraticCurveTo(-22, wingY - 6, -18, wingY - 16);
+    c2.quadraticCurveTo(-10, wingY - 4, -4, wingY - 4);
+    c2.closePath();
+    c2.fill(); c2.stroke();
+    c2.beginPath();
+    c2.moveTo(8, wingY + 4);
+    c2.quadraticCurveTo(26, wingY - 6, 22, wingY - 16);
+    c2.quadraticCurveTo(14, wingY - 4, 8, wingY - 4);
+    c2.closePath();
+    c2.fill(); c2.stroke();
+    // wing bones
+    c2.strokeStyle = '#3a0033'; c2.lineWidth = 1.5;
+    c2.beginPath();
+    c2.moveTo(-4, wingY); c2.lineTo(-18, wingY - 14);
+    c2.moveTo(8, wingY); c2.lineTo(22, wingY - 14);
+    c2.stroke();
+  } else if (style === 'butterfly') {
+    // big colorful wings
+    const top = c2.createLinearGradient(-20, wingY - 18, 20, wingY + 8);
+    top.addColorStop(0, '#ff5fc6');
+    top.addColorStop(0.5, '#ffe14c');
+    top.addColorStop(1, '#5fa8ff');
+    c2.fillStyle = top;
+    c2.strokeStyle = '#80005a'; c2.lineWidth = 2;
+    // upper wings
+    c2.beginPath();
+    c2.ellipse(-8, wingY - 6, 14, 11, -0.3, 0, Math.PI*2); c2.fill(); c2.stroke();
+    c2.beginPath();
+    c2.ellipse(12, wingY - 6, 14, 11, 0.3, 0, Math.PI*2); c2.fill(); c2.stroke();
+    // lower wings
+    c2.beginPath();
+    c2.ellipse(-6, wingY + 8, 11, 9, -0.4, 0, Math.PI*2); c2.fill(); c2.stroke();
+    c2.beginPath();
+    c2.ellipse(10, wingY + 8, 11, 9, 0.4, 0, Math.PI*2); c2.fill(); c2.stroke();
+    // dots
+    c2.fillStyle = '#80005a';
+    c2.beginPath(); c2.arc(-8, wingY - 6, 2, 0, Math.PI*2); c2.fill();
+    c2.beginPath(); c2.arc(12, wingY - 6, 2, 0, Math.PI*2); c2.fill();
+  }
+}
+
 function drawAnimal(c2, cx, cy, scale = 1, flapping = false, rotation = 0) {
   // SIDE VIEW — animal stands on 4 legs, facing RIGHT
   const colors = CAT_COLORS[settings.cat.color];
@@ -1070,8 +1567,8 @@ function drawAnimal(c2, cx, cy, scale = 1, flapping = false, rotation = 0) {
   c2.rotate(rotation);
   c2.scale(scale, scale);
 
-  // body fill (rainbow support)
-  let bodyFill;
+  // body fill (rainbow / galaxy / fire support)
+  let bodyFill, flatBody;
   if (colors.body === 'rainbow') {
     bodyFill = c2.createLinearGradient(-30, -20, 30, 20);
     bodyFill.addColorStop(0, '#ff5fc6');
@@ -1079,11 +1576,24 @@ function drawAnimal(c2, cx, cy, scale = 1, flapping = false, rotation = 0) {
     bodyFill.addColorStop(0.5, '#5fd96b');
     bodyFill.addColorStop(0.75, '#5fa8ff');
     bodyFill.addColorStop(1, '#c46bff');
+    flatBody = '#ff5fc6';
+  } else if (colors.body === 'galaxy') {
+    bodyFill = c2.createRadialGradient(0, 0, 4, 0, 0, 30);
+    bodyFill.addColorStop(0, '#c46bff');
+    bodyFill.addColorStop(0.5, '#3a0a4a');
+    bodyFill.addColorStop(1, '#1a0033');
+    flatBody = '#3a0a4a';
+  } else if (colors.body === 'fire') {
+    bodyFill = c2.createLinearGradient(-30, 20, 30, -20);
+    bodyFill.addColorStop(0, '#ff3a3a');
+    bodyFill.addColorStop(0.5, '#ff8e3c');
+    bodyFill.addColorStop(1, '#ffe14c');
+    flatBody = '#ff8e3c';
   } else {
     bodyFill = colors.body;
+    flatBody = colors.body;
   }
   const stroke = colors.stroke;
-  const flatBody = colors.body === 'rainbow' ? '#ff5fc6' : colors.body;
 
   // ============ TAIL (back-most) ============
   c2.strokeStyle = stroke; c2.lineWidth = 4; c2.lineCap = 'round';
@@ -1155,20 +1665,7 @@ function drawAnimal(c2, cx, cy, scale = 1, flapping = false, rotation = 0) {
   }
 
   // ============ WINGS (above body, behind head) ============
-  // Side-view wings: both wings overlapping, fluttering up
-  const wingY = flapping ? -16 : -6;
-  c2.fillStyle = '#fff';
-  c2.strokeStyle = '#5fa8ff'; c2.lineWidth = 2;
-  // back wing (slightly offset)
-  c2.beginPath(); c2.ellipse(-2, wingY + 2, 16, 11, -0.3, 0, Math.PI*2); c2.fill(); c2.stroke();
-  // front wing
-  c2.beginPath(); c2.ellipse(2, wingY, 18, 13, -0.3, 0, Math.PI*2); c2.fill(); c2.stroke();
-  // feather detail
-  c2.strokeStyle = 'rgba(95,168,255,0.4)';
-  c2.beginPath();
-  c2.moveTo(-12, wingY); c2.lineTo(14, wingY - 3);
-  c2.moveTo(-10, wingY + 4); c2.lineTo(14, wingY + 1);
-  c2.stroke();
+  drawWings(c2, settings.cat.wings, flapping);
 
   // ============ HEAD (right side) ============
   c2.fillStyle = bodyFill;
@@ -1319,6 +1816,63 @@ function drawCatHat(c2, hat) {
     c2.beginPath(); c2.arc(8, -25, 2, 0, Math.PI*2); c2.fill();
     c2.fillStyle = '#fff';
     c2.beginPath(); c2.arc(0, -42, 4, 0, Math.PI*2); c2.fill();
+  } else if (hat === 'tophat') {
+    c2.fillStyle = '#000'; c2.strokeStyle = '#222'; c2.lineWidth = 2;
+    c2.fillRect(-16, -22, 32, 4);                  // brim
+    c2.strokeRect(-16, -22, 32, 4);
+    c2.fillRect(-12, -38, 24, 16);                 // crown
+    c2.strokeRect(-12, -38, 24, 16);
+    c2.fillStyle = '#ff5fc6';                      // pink band
+    c2.fillRect(-12, -26, 24, 4);
+  } else if (hat === 'shades') {
+    c2.fillStyle = '#000'; c2.strokeStyle = '#222'; c2.lineWidth = 2;
+    c2.fillRect(-13, -10, 11, 7); c2.strokeRect(-13, -10, 11, 7);
+    c2.fillRect(2, -10, 11, 7);   c2.strokeRect(2, -10, 11, 7);
+    c2.beginPath(); c2.moveTo(-2, -7); c2.lineTo(2, -7); c2.stroke();   // bridge
+    // shine glints
+    c2.fillStyle = '#fff';
+    c2.fillRect(-11, -9, 2, 2); c2.fillRect(4, -9, 2, 2);
+  } else if (hat === 'cowboy') {
+    c2.fillStyle = '#a0522d'; c2.strokeStyle = '#5a3010'; c2.lineWidth = 2;
+    // wide brim
+    c2.beginPath();
+    c2.ellipse(0, -20, 22, 5, 0, 0, Math.PI*2);
+    c2.fill(); c2.stroke();
+    // crown
+    c2.fillRect(-10, -32, 20, 12);
+    c2.strokeRect(-10, -32, 20, 12);
+    // band
+    c2.fillStyle = '#5a3010';
+    c2.fillRect(-10, -24, 20, 3);
+    // little star
+    c2.fillStyle = '#ffe14c';
+    c2.beginPath();
+    c2.arc(0, -27, 2, 0, Math.PI*2);
+    c2.fill();
+  } else if (hat === 'viking') {
+    // helmet base
+    c2.fillStyle = '#7a7a8a'; c2.strokeStyle = '#3a3a4a'; c2.lineWidth = 2;
+    c2.beginPath(); c2.arc(0, -22, 14, Math.PI, Math.PI * 2); c2.fill(); c2.stroke();
+    c2.fillRect(-14, -24, 28, 4);
+    c2.strokeRect(-14, -24, 28, 4);
+    // horns
+    c2.fillStyle = '#fff5cc'; c2.strokeStyle = '#7a4a1a';
+    c2.beginPath();
+    c2.moveTo(-14, -28); c2.quadraticCurveTo(-22, -32, -18, -38);
+    c2.quadraticCurveTo(-15, -34, -14, -28); c2.closePath();
+    c2.fill(); c2.stroke();
+    c2.beginPath();
+    c2.moveTo(14, -28); c2.quadraticCurveTo(22, -32, 18, -38);
+    c2.quadraticCurveTo(15, -34, 14, -28); c2.closePath();
+    c2.fill(); c2.stroke();
+  } else if (hat === 'halo') {
+    // golden halo glow
+    c2.strokeStyle = '#ffe14c'; c2.lineWidth = 5;
+    c2.shadowColor = '#ffe14c'; c2.shadowBlur = 14;
+    c2.beginPath();
+    c2.ellipse(0, -22, 18, 5, 0, 0, Math.PI*2);
+    c2.stroke();
+    c2.shadowBlur = 0;
   }
 }
 
@@ -1418,66 +1972,120 @@ requestAnimationFrame(loop);
 
 // ---- Cat shop UI ----
 const catAnimalOpts = document.getElementById('cat-animal-opts');
-const ANIMAL_EMOJI = { cat: '🐱', dog: '🐶', bird: '🐦', bear: '🐻' };
-ANIMAL_TYPES.forEach(name => {
+const catColorOpts  = document.getElementById('cat-color-opts');
+const catHatOpts    = document.getElementById('cat-hat-opts');
+const catEyeOpts    = document.getElementById('cat-eye-opts');
+const catWingsOpts  = document.getElementById('cat-wings-opts');
+const catShopMsg    = document.getElementById('cat-shop-msg');
+const ANIMAL_EMOJI  = { cat: '🐱', dog: '🐶', bird: '🐦', bear: '🐻' };
+
+function premiumDef(kind, name) {
+  if (kind === 'hats')   return PREMIUM_HATS[name];
+  if (kind === 'colors') return PREMIUM_COLORS[name];
+  if (kind === 'bugs')   return PREMIUM_BUGS[name];
+  if (kind === 'wings')  return WING_STYLES[name] && WING_STYLES[name].cost > 0 ? WING_STYLES[name] : null;
+  return null;
+}
+function isUnlocked(kind, name) {
+  return !premiumDef(kind, name) || itemUnlocked[kind].has(name);
+}
+
+function makeOptBtn(label, selected, locked, onClick) {
   const b = document.createElement('button');
   b.className = 'opt-btn';
-  b.textContent = `${ANIMAL_EMOJI[name]} ${name}`;
-  if (settings.cat.animal === name) b.classList.add('selected');
-  b.onclick = () => {
-    settings.cat.animal = name;
-    renderCatPreview();
-    catAnimalOpts.querySelectorAll('.opt-btn').forEach(x => x.classList.remove('selected'));
-    b.classList.add('selected');
-    sClick();
-  };
-  catAnimalOpts.appendChild(b);
-});
-const catColorOpts = document.getElementById('cat-color-opts');
-Object.keys(CAT_COLORS).forEach(name => {
-  const b = document.createElement('button');
-  b.className = 'opt-btn';
-  b.textContent = name;
-  if (settings.cat.color === name) b.classList.add('selected');
-  b.onclick = () => {
-    settings.cat.color = name;
-    renderCatPreview();
-    catColorOpts.querySelectorAll('.opt-btn').forEach(x => x.classList.remove('selected'));
-    b.classList.add('selected');
-    sClick();
-  };
-  catColorOpts.appendChild(b);
-});
-const catHatOpts = document.getElementById('cat-hat-opts');
-CAT_HATS.forEach(name => {
-  const b = document.createElement('button');
-  b.className = 'opt-btn';
-  b.textContent = name;
-  if (settings.cat.hat === name) b.classList.add('selected');
-  b.onclick = () => {
-    settings.cat.hat = name;
-    renderCatPreview();
-    catHatOpts.querySelectorAll('.opt-btn').forEach(x => x.classList.remove('selected'));
-    b.classList.add('selected');
-    sClick();
-  };
-  catHatOpts.appendChild(b);
-});
-const catEyeOpts = document.getElementById('cat-eye-opts');
-CAT_EYES.forEach(name => {
-  const b = document.createElement('button');
-  b.className = 'opt-btn';
-  b.textContent = name;
-  if (settings.cat.eye === name) b.classList.add('selected');
-  b.onclick = () => {
-    settings.cat.eye = name;
-    renderCatPreview();
-    catEyeOpts.querySelectorAll('.opt-btn').forEach(x => x.classList.remove('selected'));
-    b.classList.add('selected');
-    sClick();
-  };
-  catEyeOpts.appendChild(b);
-});
+  if (selected) b.classList.add('selected');
+  if (locked)   b.classList.add('locked');
+  b.innerHTML = label;
+  b.onclick = onClick;
+  return b;
+}
+
+// Try to buy a premium item with coins; returns true on success.
+function tryBuy(kind, name) {
+  const def = premiumDef(kind, name);
+  if (!def) return true;
+  if (itemUnlocked[kind].has(name)) return true;
+  if (coins < def.cost) {
+    catShopMsg.textContent = `💔 Need ${def.cost - coins} more 🪙 to unlock ${def.name || name}`;
+    catShopMsg.style.color = '#ffaaaa';
+    return false;
+  }
+  coins -= def.cost;
+  itemUnlocked[kind].add(name);
+  saveCoins(); saveItemUnlocks(); refreshStars();
+  catShopMsg.innerHTML = `🎉 Unlocked <b>${def.name || name}</b>!`;
+  catShopMsg.style.color = '#ffe14c';
+  sFish();
+  return true;
+}
+
+function renderCatShop() {
+  if (!catShopMsg.textContent) catShopMsg.textContent = '';
+  // ANIMAL
+  catAnimalOpts.innerHTML = '';
+  ANIMAL_TYPES.forEach(name => {
+    const btn = makeOptBtn(`${ANIMAL_EMOJI[name]} ${name}`,
+      settings.cat.animal === name, false, () => {
+        settings.cat.animal = name;
+        sClick(); saveSettings(); renderCatShop(); renderCatPreview();
+      });
+    catAnimalOpts.appendChild(btn);
+  });
+  // COLOR
+  catColorOpts.innerHTML = '';
+  Object.keys(CAT_COLORS).forEach(name => {
+    const def = premiumDef('colors', name);
+    const unlocked = isUnlocked('colors', name);
+    const label = unlocked ? (def?.name || name) : `🔒 ${def.name} <span class="cost">(${def.cost} 🪙)</span>`;
+    const btn = makeOptBtn(label, settings.cat.color === name, !unlocked, () => {
+      sClick();
+      if (tryBuy('colors', name)) {
+        settings.cat.color = name;
+        saveSettings(); renderCatShop(); renderCatPreview();
+      } else { renderCatShop(); }
+    });
+    catColorOpts.appendChild(btn);
+  });
+  // HAT
+  catHatOpts.innerHTML = '';
+  CAT_HATS.forEach(name => {
+    const def = premiumDef('hats', name);
+    const unlocked = isUnlocked('hats', name);
+    const label = unlocked ? (def?.name || name) : `🔒 ${def.name} <span class="cost">(${def.cost} 🪙)</span>`;
+    const btn = makeOptBtn(label, settings.cat.hat === name, !unlocked, () => {
+      sClick();
+      if (tryBuy('hats', name)) {
+        settings.cat.hat = name;
+        saveSettings(); renderCatShop(); renderCatPreview();
+      } else { renderCatShop(); }
+    });
+    catHatOpts.appendChild(btn);
+  });
+  // EYE (all free)
+  catEyeOpts.innerHTML = '';
+  CAT_EYES.forEach(name => {
+    const btn = makeOptBtn(name, settings.cat.eye === name, false, () => {
+      settings.cat.eye = name;
+      sClick(); saveSettings(); renderCatShop(); renderCatPreview();
+    });
+    catEyeOpts.appendChild(btn);
+  });
+  // WINGS
+  catWingsOpts.innerHTML = '';
+  Object.keys(WING_STYLES).forEach(name => {
+    const def = WING_STYLES[name];
+    const unlocked = isUnlocked('wings', name);
+    const label = unlocked ? def.name : `🔒 ${def.name} <span class="cost">(${def.cost} 🪙)</span>`;
+    const btn = makeOptBtn(label, settings.cat.wings === name, !unlocked, () => {
+      sClick();
+      if (tryBuy('wings', name)) {
+        settings.cat.wings = name;
+        saveSettings(); renderCatShop(); renderCatPreview();
+      } else { renderCatShop(); }
+    });
+    catWingsOpts.appendChild(btn);
+  });
+}
 
 const catPreview = document.getElementById('cat-preview').getContext('2d');
 function renderCatPreview() {
@@ -1487,38 +2095,57 @@ function renderCatPreview() {
   catPreview.fillStyle = grad; catPreview.fillRect(0, 0, 200, 180);
   drawCat(catPreview, 100, 100, 1.4, false, 0);
 }
+renderCatShop();
 
 // ---- Bug shop UI ----
-const bugTypeOpts = document.getElementById('bug-type-opts');
-BUG_TYPES.forEach(name => {
-  const b = document.createElement('button');
-  b.className = 'opt-btn';
-  b.textContent = name;
-  if (settings.bug.type === name) b.classList.add('selected');
-  b.onclick = () => {
-    settings.bug.type = name;
-    renderBugPreview();
-    bugTypeOpts.querySelectorAll('.opt-btn').forEach(x => x.classList.remove('selected'));
-    b.classList.add('selected');
-    sClick();
-  };
-  bugTypeOpts.appendChild(b);
-});
+const bugTypeOpts  = document.getElementById('bug-type-opts');
 const bugColorOpts = document.getElementById('bug-color-opts');
-BUG_COLORS.forEach(name => {
-  const b = document.createElement('button');
-  b.className = 'opt-btn';
-  b.textContent = name;
-  if (settings.bug.color === name) b.classList.add('selected');
-  b.onclick = () => {
-    settings.bug.color = name;
-    renderBugPreview();
-    bugColorOpts.querySelectorAll('.opt-btn').forEach(x => x.classList.remove('selected'));
-    b.classList.add('selected');
-    sClick();
-  };
-  bugColorOpts.appendChild(b);
-});
+const bugShopMsgInternal = document.createElement('p');  // optional area for messages
+bugShopMsgInternal.style.cssText = 'font-size:14px;opacity:0.8;min-height:18px;color:#ffaaaa;margin:6px 0;';
+document.getElementById('bug-shop').insertBefore(bugShopMsgInternal, document.getElementById('bug-shop-back'));
+
+function tryBuyBug(name) {
+  const def = PREMIUM_BUGS[name];
+  if (!def) return true;
+  if (itemUnlocked.bugs.has(name)) return true;
+  if (coins < def.cost) {
+    bugShopMsgInternal.textContent = `💔 Need ${def.cost - coins} more 🪙 to unlock ${def.name}`;
+    return false;
+  }
+  coins -= def.cost;
+  itemUnlocked.bugs.add(name);
+  saveCoins(); saveItemUnlocks(); refreshStars();
+  bugShopMsgInternal.innerHTML = `🎉 Unlocked <b>${def.name}</b>!`;
+  bugShopMsgInternal.style.color = '#ffe14c';
+  sFish();
+  return true;
+}
+
+function renderBugShop() {
+  bugTypeOpts.innerHTML = '';
+  BUG_TYPES.forEach(name => {
+    const def = PREMIUM_BUGS[name];
+    const unlocked = !def || itemUnlocked.bugs.has(name);
+    const label = unlocked ? (def?.name || name) : `🔒 ${def.name} <span class="cost">(${def.cost} 🪙)</span>`;
+    const btn = makeOptBtn(label, settings.bug.type === name, !unlocked, () => {
+      sClick();
+      if (tryBuyBug(name)) {
+        settings.bug.type = name;
+        saveSettings(); renderBugShop(); renderBugPreview();
+      } else { renderBugShop(); }
+    });
+    bugTypeOpts.appendChild(btn);
+  });
+  bugColorOpts.innerHTML = '';
+  BUG_COLORS.forEach(name => {
+    const btn = makeOptBtn(name, settings.bug.color === name, false, () => {
+      settings.bug.color = name;
+      sClick(); saveSettings(); renderBugShop(); renderBugPreview();
+    });
+    bugColorOpts.appendChild(btn);
+  });
+}
+renderBugShop();
 
 // ---- BG shop UI ----
 const bgTypeOpts = document.getElementById('bg-type-opts');
