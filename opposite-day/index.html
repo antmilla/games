@@ -736,6 +736,81 @@ const levels = [
       if (level.exitDoor) drawDoor(level.exitDoor);
     }
   },
+
+  // Level 7: LAVA — sign says don't touch, but it's not real lava!
+  // Cross the floor of "lava" to reach the goal door on the other side.
+  {
+    name: "Level 7: LAVA",
+    sign: "🌋 DON'T TOUCH THE LAVA! IT'S HOT! 🔥",
+    bgColor: '#3a1a1a',
+    init() {
+      player.x = 80; player.y = H/2;
+      // goal door on a stone island in the middle of the lava
+      level.goalDoor = { x: W/2 + 130, y: H/2, color: '#3aaa3a', label: "🎉 NEXT LEVEL! 🎉", isGoal: true };
+      // trap "safe path" door at the top — going around the lava = obeying = restart
+      level.trapDoor = { x: W/2, y: 90, color: '#ff5fc6', label: "🚪 SAFE PATH 🚪", isGoal: false };
+      level.lavaPhase = 0;
+    },
+    update(dt) {
+      level.lavaPhase += 0.05;
+      // goal — reach the door on the far side
+      const g = level.goalDoor;
+      if (Math.abs(player.x - g.x) < 32 && Math.abs(player.y - g.y) < 50) {
+        winLevel();
+        return;
+      }
+      // trap — going around (top safe path) means obeying the sign
+      const t = level.trapDoor;
+      if (Math.abs(player.x - t.x) < 32 && Math.abs(player.y - t.y) < 50) {
+        restartFromBeginning();
+      }
+    },
+    draw() {
+      // big "lava" pool covering most of the floor
+      const lavaTop = H * 0.32;
+      const lavaBottom = H - 40;
+      // base red gradient
+      const grad = ctx.createLinearGradient(0, lavaTop, 0, lavaBottom);
+      grad.addColorStop(0, '#ffd700');
+      grad.addColorStop(0.4, '#ff5500');
+      grad.addColorStop(1, '#a01010');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, lavaTop, W, lavaBottom - lavaTop);
+      // bubbling animation — moving blobs
+      for (let i = 0; i < 14; i++) {
+        const bx = ((i * 73 + level.lavaPhase * 30) % (W + 80)) - 40;
+        const by = lavaTop + 20 + Math.sin(level.lavaPhase + i) * 10 + (i * 17) % (lavaBottom - lavaTop - 40);
+        const r = 12 + (i % 3) * 4;
+        ctx.fillStyle = `rgba(255, ${180 + (i*30)%70}, 0, 0.7)`;
+        ctx.beginPath(); ctx.arc(bx, by, r, 0, Math.PI*2); ctx.fill();
+      }
+      // glow on top
+      ctx.fillStyle = 'rgba(255, 220, 100, 0.3)';
+      ctx.fillRect(0, lavaTop - 10, W, 14);
+      // safe rock at the player's start area (left edge)
+      ctx.fillStyle = '#7a7a8a';
+      ctx.beginPath();
+      ctx.moveTo(0, lavaTop);
+      ctx.lineTo(140, lavaTop);
+      ctx.lineTo(140, lavaBottom);
+      ctx.lineTo(0, lavaBottom);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#3a3a4a'; ctx.lineWidth = 3; ctx.stroke();
+      // safe stone island around the goal door
+      ctx.fillStyle = '#7a7a8a';
+      ctx.beginPath();
+      ctx.ellipse(W/2 + 130, lavaTop + 100, 90, 50, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle = '#3a3a4a';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      // top "safe path" trap door
+      drawDoor(level.trapDoor);
+      // goal door
+      drawDoor(level.goalDoor);
+    }
+  },
 ];
 
 // ----- Level state machine -----
@@ -787,7 +862,7 @@ function gameWon() {
   ov.querySelector('h2').textContent = '🏆 YOU WON OPPOSITE DAY! 🏆';
   // wipe old paragraphs and put a single celebratory one
   ov.querySelectorAll('p').forEach((p, i) => { if (i > 0) p.remove(); });
-  ov.querySelector('p').innerHTML = "You did <b>ALL</b> the opposites correctly!<br>You are an Opposite Day MASTER, Camilla! 🎉";
+  ov.querySelector('p').innerHTML = "You did <b>ALL</b> the opposites correctly!<br>You are an Opposite Day MASTER! 🎉";
   startBtn.textContent = 'PLAY AGAIN';
   ov.classList.remove('hidden');
 }

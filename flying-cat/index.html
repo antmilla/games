@@ -376,7 +376,12 @@
     box-shadow: 0 8px 0 #c47a00;
     animation: adPulse 0.6s ease-in-out infinite alternate;
     letter-spacing: 2px;
+    text-decoration: none;
+    display: inline-block;
+    cursor: pointer;
+    border: 3px solid #c47a00;
   }
+  .ad-cta:active { transform: translateY(3px); box-shadow: 0 4px 0 #c47a00; }
   @keyframes adPulse {
     from { transform: scale(1); }
     to   { transform: scale(1.08); }
@@ -1011,7 +1016,7 @@ function showSingleAd(onDone) {
       <div class="ad-emoji">${ad.emoji}</div>
       <div class="ad-title">${ad.title}</div>
       <div class="ad-tag">${ad.tag}</div>
-      <div class="ad-cta">PLAY NOW!</div>
+      <a class="ad-cta" href="${ad.url}">PLAY NOW!</a>
       <div class="ad-reward">⭐ +1 star &nbsp; 🪙 +1 coin</div>
     </div>
     <button class="ad-skip">✕ continue</button>
@@ -1032,6 +1037,8 @@ function showSingleAd(onDone) {
   };
   const skip = tvOverlay.querySelector('.ad-skip');
   if (skip) skip.onclick = (e) => { e.stopPropagation(); finish(); };
+  const cta = tvOverlay.querySelector('.ad-cta');
+  if (cta) cta.onclick = (e) => { e.stopPropagation(); };
   tvOverlay.onclick = finish;
   singleAdTimeout = setTimeout(finish, 3000);
 }
@@ -1041,14 +1048,14 @@ document.getElementById('go-menu-btn').addEventListener('click', () => { sClick(
 
 // ---- TV COMMERCIAL ----
 const COMMERCIALS = [
-  { title: 'OPPOSITE DAY!',     emoji: '🙃',     tag: 'Every sign LIES! Do the OPPOSITE!',          bg: 'linear-gradient(135deg,#ffd6f5 0%,#c46bff 100%)' },
-  { title: 'JUNGLE ADVENTURE',  emoji: '🌴',     tag: 'Pick your path — find all 8 endings!',       bg: 'linear-gradient(180deg,#2d5016 0%,#6dab4a 100%)' },
-  { title: 'MAGICAL FOREST',    emoji: '🐉',     tag: 'Beat the BOSS DRAGON!',                       bg: 'linear-gradient(180deg,#1f4d1f 0%,#0e2a0e 100%)' },
-  { title: 'TWO TRUTHS & A LIE', emoji: '🎭',    tag: 'Trick your friend... or the ROBOT!',         bg: 'linear-gradient(135deg,#ffd6f5 0%,#cdfaff 100%)' },
-  { title: 'KITTY MOVIE',       emoji: '🐱',     tag: 'A cat\'s big day! 🎬',                        bg: 'linear-gradient(180deg,#ff5fc6 0%,#ffe14c 100%)' },
-  { title: 'BLUEY MOVIE',       emoji: '🐶💙',   tag: 'Bluey & Bingo & Mum & Dad! 💖',                bg: 'linear-gradient(180deg,#003d5a 0%,#5fd9ff 100%)' },
-  { title: 'SQUISHMALLOWS',     emoji: '🦄',     tag: 'Squishy hugs all around! 🌸',                 bg: 'linear-gradient(135deg,#ffd6f5 0%,#5fd9ff 100%)' },
-  { title: 'MERMAID ADVENTURE', emoji: '🧜‍♀️',  tag: 'Under the sea! 🌊',                            bg: 'linear-gradient(180deg,#5fd9ff 0%,#003d5a 100%)' },
+  { title: 'OPPOSITE DAY!',     emoji: '🙃',     tag: 'Every sign LIES! Do the OPPOSITE!',          bg: 'linear-gradient(135deg,#ffd6f5 0%,#c46bff 100%)', url: '../opposite-day/' },
+  { title: 'JUNGLE ADVENTURE',  emoji: '🌴',     tag: 'Pick your path — find all 8 endings!',       bg: 'linear-gradient(180deg,#2d5016 0%,#6dab4a 100%)', url: '../jungle-adventure/' },
+  { title: 'MAGICAL FOREST',    emoji: '🐉',     tag: 'Beat the BOSS DRAGON!',                       bg: 'linear-gradient(180deg,#1f4d1f 0%,#0e2a0e 100%)', url: '../magical-forest/' },
+  { title: 'TWO TRUTHS & A LIE', emoji: '🎭',    tag: 'Trick your friend... or the ROBOT!',         bg: 'linear-gradient(135deg,#ffd6f5 0%,#cdfaff 100%)', url: '../two-truths-and-a-lie/' },
+  { title: 'KITTY MOVIE',       emoji: '🐱',     tag: 'A cat\'s big day! 🎬',                        bg: 'linear-gradient(180deg,#ff5fc6 0%,#ffe14c 100%)', url: '../kitty-movie/' },
+  { title: 'BLUEY MOVIE',       emoji: '🐶💙',   tag: 'Bluey & Bingo & Mum & Dad! 💖',                bg: 'linear-gradient(180deg,#003d5a 0%,#5fd9ff 100%)', url: '../bluey-movie/' },
+  { title: 'SQUISHMALLOWS',     emoji: '🦄',     tag: 'Squishy hugs all around! 🌸',                 bg: 'linear-gradient(135deg,#ffd6f5 0%,#5fd9ff 100%)', url: '../squishmallow-movie/' },
+  { title: 'MERMAID ADVENTURE', emoji: '🧜‍♀️',  tag: 'Under the sea! 🌊',                            bg: 'linear-gradient(180deg,#5fd9ff 0%,#003d5a 100%)', url: '../mermaid-movie/' },
 ];
 
 const tvBtn = document.getElementById('tv-btn');
@@ -1072,7 +1079,7 @@ function showCommercial() {
         <div class="ad-card">
           <div class="ad-emoji">🎮</div>
           <div class="ad-title" style="color:#ffe14c;">PLAY THEM ALL!</div>
-          <div class="ad-tag">All games by Camilla</div>
+          <div class="ad-tag">All my games — play them all!</div>
           <div class="ad-cta" style="background:#5fd96b;color:#1a4a1a;">🎁 +${adsWatched} ⭐ &amp; +${adsWatched} 🪙</div>
         </div>
         <button class="ad-skip">✕ close</button>
@@ -1097,7 +1104,7 @@ function showCommercial() {
         <div class="ad-emoji">${ad.emoji}</div>
         <div class="ad-title">${ad.title}</div>
         <div class="ad-tag">${ad.tag}</div>
-        <div class="ad-cta">PLAY NOW!</div>
+        <a class="ad-cta" href="${ad.url}">PLAY NOW!</a>
         <div class="ad-reward">⭐ +1 star &nbsp; 🪙 +1 coin</div>
       </div>
       <button class="ad-skip">✕ close</button>
@@ -1113,6 +1120,8 @@ function showCommercial() {
   function attachClose() {
     const skipBtn = tvOverlay.querySelector('.ad-skip');
     if (skipBtn) skipBtn.onclick = (e) => { e.stopPropagation(); closeCommercial(); };
+    const cta = tvOverlay.querySelector('.ad-cta');
+    if (cta) cta.onclick = (e) => { e.stopPropagation(); /* let link navigate normally */ };
   }
 
   // tap anywhere on the overlay to advance
@@ -1203,6 +1212,33 @@ function drawBug(c2, x, y, r, color, type) {
   const t = performance.now() / 200;
   c2.save();
   c2.translate(x, y);
+
+  // Translucent flapping wings on every bug (except copter, which has rotors)
+  if (type !== 'copter') {
+    const flap = Math.sin(t * 5) * 4;
+    c2.save();
+    c2.fillStyle = 'rgba(255, 255, 255, 0.55)';
+    c2.strokeStyle = 'rgba(60, 60, 90, 0.6)';
+    c2.lineWidth = 1.5;
+    // left wing
+    c2.beginPath();
+    c2.ellipse(-r * 0.5, -r * 0.55 - flap, r * 0.7, r * 0.45, -0.5, 0, Math.PI*2);
+    c2.fill(); c2.stroke();
+    // right wing
+    c2.beginPath();
+    c2.ellipse(r * 0.5, -r * 0.55 + flap, r * 0.7, r * 0.45, 0.5, 0, Math.PI*2);
+    c2.fill(); c2.stroke();
+    // wing veins
+    c2.strokeStyle = 'rgba(60, 60, 90, 0.3)';
+    c2.beginPath();
+    c2.moveTo(-r * 0.5, -r * 0.55); c2.lineTo(-r * 1.0, -r * 0.85);
+    c2.moveTo(-r * 0.5, -r * 0.55); c2.lineTo(-r * 0.9, -r * 0.4);
+    c2.moveTo(r * 0.5, -r * 0.55);  c2.lineTo(r * 1.0, -r * 0.85);
+    c2.moveTo(r * 0.5, -r * 0.55);  c2.lineTo(r * 0.9, -r * 0.4);
+    c2.stroke();
+    c2.restore();
+  }
+
   if (type === 'caterpillar') {
     // segments wave up and down (like crawling but in place)
     for (let i = -1; i <= 1; i++) {

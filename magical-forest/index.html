@@ -739,7 +739,7 @@ function update(dt) {
         treasureSound();
         setTimeout(()=>treasureSound(), 250);
         setTimeout(()=>treasureSound(), 500);
-        showMessage("🎉 YOU DEFEATED THE GIANT DRAGON! 🎉\n💖 The dragon is now your friend! 💖\nYou are the FOREST HERO, Camilla! 🏆", 6000);
+        showMessage("🎉 YOU DEFEATED THE GIANT DRAGON! 🎉\n💖 The dragon is now your friend! 💖\nYou are the FOREST HERO! 🏆", 6000);
         playerHearts = MAX_HEARTS;  // full heal
       }
       continue;
@@ -767,7 +767,7 @@ function update(dt) {
         // clear all projectiles so she's safe right after respawn
         bossBubbles.length = 0;
         playerSparkles.length = 0;
-        showMessage("💖 The fairies brought you back to the start! 💖\nTry again, brave Camilla!", 2400);
+        showMessage("💖 The fairies brought you back to the start! 💖\nTry again, brave explorer!", 2400);
         // IMPORTANT: stop iterating — the array we were looping over is now empty
         break;
       }
@@ -786,7 +786,7 @@ function update(dt) {
       treasureSound();
       showMessage("💎 You found a hidden treasure! ✨", 1800);
       if (scoreTreas === treasures.length) {
-        setTimeout(() => showMessage("🎉 You found ALL the treasures, Camilla! 🎉", 4000), 1800);
+        setTimeout(() => showMessage("🎉 You found ALL the treasures! 🎉", 4000), 1800);
       }
     }
   });

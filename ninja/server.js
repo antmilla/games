@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const PORT = 3002;
+const PORT = 3000;
 
 // Store SSE clients
 let clients = [];

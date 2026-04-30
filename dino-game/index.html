@@ -276,12 +276,20 @@ function die() {
     localStorage.setItem('dino-best', best);
     bestEl.textContent = best;
   }
-  overlayTitle.textContent = '😵 OUCH!';
-  overlay.querySelector('p').innerHTML = `Score: <b>${score}</b> &nbsp; Best: <b>${best}</b>`;
-  // remove old extra <p> tags
+  overlayTitle.textContent = "🦖 It's okay! 💛";
+  // clear old paragraphs and put in encouraging ones
   const ps = overlay.querySelectorAll('p');
-  for (let i = ps.length - 1; i >= 1; i--) ps[i].remove();
-  document.getElementById('start-btn').textContent = '▶ TRY AGAIN';
+  ps.forEach(p => p.remove());
+  const p1 = document.createElement('p');
+  p1.style.cssText = 'color:#ffe14c;font-size:22px;font-weight:bold;text-shadow:2px 2px 0 #80005a;';
+  p1.textContent = 'You can start again! 🌟';
+  const p2 = document.createElement('p');
+  p2.innerHTML = `Score: <b>${score}</b> &nbsp; Best: <b>${best}</b>`;
+  // insert before the button
+  const btn = document.getElementById('start-btn');
+  overlay.insertBefore(p1, btn);
+  overlay.insertBefore(p2, btn);
+  btn.textContent = '▶ TRY AGAIN';
   overlay.classList.remove('hidden');
 }
 

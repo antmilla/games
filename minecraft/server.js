@@ -14,7 +14,7 @@ const liveReloadScript = `
 let clients = [];
 
 const server = Bun.serve({
-  port: 3001,
+  port: 3000,
   async fetch(req) {
     const url = new URL(req.url);
 

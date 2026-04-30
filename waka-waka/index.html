@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Waka Waka 🎵</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    height: 100vh;
+    background: linear-gradient(135deg, #ff5fc6 0%, #ffe14c 33%, #5fd96b 66%, #5fa8ff 100%);
+    background-size: 300% 300%;
+    animation: rainbowShift 10s ease-in-out infinite;
+    overflow: hidden;
+    font-family: "Comic Sans MS", "Trebuchet MS", sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  @keyframes rainbowShift {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  h1 {
+    font-size: 56px;
+    color: #fff;
+    text-shadow: 4px 4px 0 #80005a, 8px 8px 0 #2a0033;
+    margin: 10px 0;
+    letter-spacing: 4px;
+    animation: bob 1.5s ease-in-out infinite alternate;
+  }
+  @keyframes bob {
+    from { transform: translateY(0) rotate(-2deg); }
+    to   { transform: translateY(-12px) rotate(2deg); }
+  }
+  .video-wrap {
+    border: 6px solid #fff;
+    border-radius: 16px;
+    box-shadow: 0 8px 0 #80005a, 0 0 30px rgba(0,0,0,0.4);
+    overflow: hidden;
+    background: #000;
+  }
+  iframe {
+    display: block;
+    width: 90vw;
+    max-width: 720px;
+    height: 50vh;
+    max-height: 405px;
+    border: none;
+  }
+  .dancers {
+    font-size: 56px;
+    margin-top: 18px;
+    animation: dance 0.5s ease-in-out infinite alternate;
+    text-shadow: 2px 2px 0 #80005a;
+  }
+  @keyframes dance {
+    from { transform: translateX(-10px) rotate(-5deg); }
+    to   { transform: translateX(10px) rotate(5deg); }
+  }
+  .fallback {
+    margin-top: 14px;
+    color: #fff;
+    font-size: 16px;
+    text-shadow: 2px 2px 0 #80005a;
+    text-align: center;
+  }
+  .fallback a {
+    color: #ffe14c;
+    font-weight: bold;
+  }
+  /* sparkles */
+  .sparkle {
+    position: fixed;
+    font-size: 30px;
+    pointer-events: none;
+    animation: sparkleFloat 6s linear infinite;
+    z-index: -1;
+  }
+  @keyframes sparkleFloat {
+    from { transform: translateY(110vh) rotate(0deg); opacity: 0; }
+    10%  { opacity: 1; }
+    90%  { opacity: 1; }
+    to   { transform: translateY(-30px) rotate(360deg); opacity: 0; }
+  }
+</style>
+</head>
+<body>
+<h1>🎵 WAKA WAKA EH EH 🎵</h1>
+<div class="video-wrap">
+  <iframe
+    src="https://www.youtube.com/embed/pRpeEdMmmQ0?autoplay=1"
+    title="Shakira - Waka Waka (This Time for Africa)"
+    allow="autoplay; encrypted-media; picture-in-picture"
+    allowfullscreen></iframe>
+</div>
+<div class="dancers">💃🕺🎵🥁🎉</div>
+<div class="fallback">
+  Music not playing? <a href="https://www.youtube.com/results?search_query=shakira+waka+waka" target="_blank">Search on YouTube</a>!
+</div>
+
+<script>
+// floating sparkles in the background
+const emojis = ['✨','⭐','🌟','💫','🎵','🎶','🎉'];
+function spawn() {
+  const s = document.createElement('div');
+  s.className = 'sparkle';
+  s.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+  s.style.left = (Math.random() * 100) + 'vw';
+  s.style.animationDuration = (5 + Math.random() * 4) + 's';
+  document.body.appendChild(s);
+  setTimeout(() => s.remove(), 10000);
+}
+setInterval(spawn, 400);
+for (let i = 0; i < 8; i++) setTimeout(spawn, i * 200);
+</script>
+</body>
+</html>
